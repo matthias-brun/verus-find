@@ -1,0 +1,9 @@
+[package]
+name = "verus-find"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", features = ["full", "extra-traits"] }
+proc-macro2 = { version = "*", features = ["span-locations"] }
+clap = { version = "*", features = [ "derive", "env" ] }
