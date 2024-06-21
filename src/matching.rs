@@ -111,31 +111,21 @@ pub fn sig_matches(
         },
         &|arg1, arg2| {
             match (&arg1.kind, &arg2.kind) {
-                // TODO: maybe don't ignore pats
-                (
-                    syn::FnArgKind::Typed(syn::PatType {
-                        pat: _pat1,
-                        ty: ty1,
-                        ..
-                    }),
-                    syn::FnArgKind::Typed(syn::PatType {
-                        pat: _pat2,
-                        ty: ty2,
-                        ..
-                    }),
-                ) => {
-                    yes_if!(type_matches(ty1, ty2, impl_type), with_span: arg2.kind.span())
+                // TODO: maybe don't ignore patterns
+                (syn::FnArgKind::Typed(ty1p), syn::FnArgKind::Typed(ty2p)) => {
+                    yes_if!(type_matches(&ty1p.ty, &ty2p.ty, impl_type), with_span: arg2.kind.span())
                 }
-                (
-                    syn::FnArgKind::Typed(syn::PatType {
-                        pat: _pat1,
-                        ty: ty1,
-                        ..
-                    }),
-                    syn::FnArgKind::Receiver(_),
-                ) => {
+                (syn::FnArgKind::Typed(ty1p), syn::FnArgKind::Receiver(receiver)) => {
                     if let Some(ty) = impl_type {
-                        yes_if!(type_matches(ty1, ty, impl_type), with_span: arg2.kind.span())
+                        match (&receiver.reference, &*ty1p.ty) {
+                            (None, _) => yes_if!(type_matches(&ty1p.ty, ty, impl_type), with_span: arg2.kind.span()),
+                            (Some(_), syn::Type::Reference(reference)) => {
+                                yes_if!(
+                                    (receiver.mutability.is_some() == reference.mutability.is_some())
+                                    && type_matches(&reference.elem, ty, impl_type), with_span: arg2.kind.span())
+                            }
+                            _ => no!(),
+                        }
                     } else {
                         no!()
                     }
@@ -601,6 +591,12 @@ fn type_matches(ty1: &syn::Type, ty2: &syn::Type, self_type: Option<&syn::Type>)
     ty1 == ty2
         || match (ty1, ty2) {
             (syn::Type::Infer(_), _) => true,
+            (_, syn::Type::Paren(ty2p)) => type_matches(ty1, &ty2p.elem, self_type),
+            (syn::Type::Paren(ty1p), _) => type_matches(&ty1p.elem, ty2, self_type),
+            (syn::Type::Reference(ty1p), syn::Type::Reference(ty2p)) => {
+                ty2p.mutability == ty1p.mutability
+                    && type_matches(&ty1p.elem, &ty2p.elem, self_type)
+            }
             (
                 syn::Type::Path(syn::TypePath {
                     path: ref path1, ..
