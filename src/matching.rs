@@ -868,7 +868,9 @@ where
                 }
             }
             // syn::Item::Macro2(ItemMacro2) => {},
-            // syn::Item::Mod(ItemMod) => {},
+            syn::Item::Mod(syn::ItemMod { content: Some((_, items)), .. }) => {
+                find_and_print_matches_in_items(items.into_iter(), file, query)
+            },
             // syn::Item::Static(ItemStatic) => {},
             // syn::Item::Struct(ItemStruct) => {},
             // syn::Item::Trait(ItemTrait) => {},
