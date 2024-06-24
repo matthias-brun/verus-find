@@ -191,6 +191,26 @@ where
         .find_map(|expr| expr_contains_match(e1, expr))
 }
 
+//pub fn exprs_match<'a, I>(exprs1: I, exprs2: I) -> Option<Vec<Span>>
+//where
+//    I: IntoIterator<Item = &'a syn::Expr>,
+//{
+//    let mut exprs1 = exprs1.into_iter();
+//    let mut exprs2 = exprs2.into_iter();
+//    let mut highlights = yes!();
+//    loop {
+//        match (exprs1.next(), exprs2.next()) {
+//            (Some(e1), Some(e2)) => {
+//                highlights = and!(
+//                    highlights,
+//                    expr_matches(e1, e2));
+//            },
+//            (None, None) => break highlights,
+//            _ => break no!(),
+//        }
+//    }
+//}
+
 /// Checks if e1 matches e2 (modulo some syntax that is ignored, e.g. parentheses and
 /// attributes)
 pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
@@ -208,7 +228,6 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
         (syn::Expr::Cast(_), _) => panic!("Query does not support: syn::Expr::Cast"),
         (syn::Expr::Closure(_), _) => panic!("Query does not support: syn::Expr::Closure"), // TODO:
         (syn::Expr::Continue(_), _) => panic!("Query does not support: syn::Expr::Continue"),
-        (syn::Expr::Field(_), _) => panic!("Query does not support: syn::Expr::Field"), // TODO:
         (syn::Expr::ForLoop(_), _) => panic!("Query does not support: syn::Expr::ForLoop"),
         (syn::Expr::Group(_), _) => panic!("Query does not support: syn::Expr::Group"),
         (syn::Expr::If(_), _) => panic!("Query does not support: syn::Expr::If"),
@@ -223,7 +242,7 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
         (syn::Expr::Struct(_), _) => panic!("Query does not support: syn::Expr::Struct"), // TODO:
         (syn::Expr::Try(_), _) => panic!("Query does not support: syn::Expr::Try"),
         (syn::Expr::TryBlock(_), _) => panic!("Query does not support: syn::Expr::TryBlock"),
-        (syn::Expr::Tuple(_), _) => panic!("Query does not support: syn::Expr::Tuple"), // TODO:
+        (syn::Expr::Tuple(_), _) => panic!("Query does not support: syn::Expr::Tuple"),
         (syn::Expr::Type(_), _) => panic!("Query does not support: syn::Expr::Type"),
         (syn::Expr::Unsafe(_), _) => panic!("Query does not support: syn::Expr::Unsafe"),
         (syn::Expr::While(_), _) => panic!("Query does not support: syn::Expr::While"),
@@ -269,9 +288,12 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                 }
             }
         }
+        // Beginning of syntax that is ignored
         (_, syn::Expr::Cast(eb2)) => expr_matches(e1, &eb2.expr),
         (syn::Expr::Paren(eb1), _) => expr_matches(&eb1.expr, e2),
         (_, syn::Expr::Paren(eb2)) => expr_matches(e1, &eb2.expr),
+        (_, syn::Expr::Type(eb2)) => expr_matches(e1, &eb2.expr),
+        // Beginning of syntax that is ignored
         (_, syn::Expr::Block(_eb2)) => None,
         (syn::Expr::Index(eb1), syn::Expr::Index(eb2)) => {
             and!(
@@ -344,6 +366,12 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
             )
         }
         (syn::Expr::Call(_), _) => None,
+        (syn::Expr::Field(eb1), syn::Expr::Field(eb2)) => {
+            and!(
+                yes_if!(eb1.member == eb2.member),
+                expr_matches(&eb1.base, &eb2.base)
+            )
+        }
         (syn::Expr::MethodCall(eb1), syn::Expr::MethodCall(eb2)) => {
             and!(
                 yes_if!(eb1.method == eb2.method),
@@ -368,6 +396,9 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
             yes_if!(eb1.lit == eb2.lit)
         }
         (syn::Expr::Lit(_), _) => None,
+        // Tuples should maybe use arg matching instead?
+        //(syn::Expr::Tuple(eb1), syn::Expr::Tuple(eb2)) => exprs_match(&eb1.elems, &eb2.elems),
+        //(syn::Expr::Tuple(_), _) => None,
         (syn::Expr::View(eb1), syn::Expr::View(eb2)) => expr_matches(&eb1.expr, &eb2.expr),
         (syn::Expr::View(_), _) => None,
         _ => unimplemented!("unknown expression"),
@@ -520,9 +551,8 @@ fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                 .elems
                 .iter()
                 .find_map(|expr| expr_contains_match(e1, &expr)),
-            syn::Expr::Type(_) => {
-                panic!("Recursion into this expr is not yet implemented: syn::Expr::Type")
-            }
+            syn::Expr::Type(eb2) => expr_matches(e1, &eb2.expr),
+
             syn::Expr::Unary(eb2) => expr_contains_match(e1, &eb2.expr),
             syn::Expr::Unsafe(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Unsafe")
@@ -564,8 +594,14 @@ fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                     expr_contains_match(e1, &eb2.rhs)
                 )
             }
-            syn::Expr::Matches(_) => {
-                panic!("Recursion into this expr is not yet implemented: syn::Expr::Matches")
+            syn::Expr::Matches(eb2) => {
+                or!(
+                    expr_contains_match(e1, &eb2.lhs),
+                    match &eb2.op_expr {
+                        Some(op_expr) => expr_contains_match(e1, &op_expr.rhs),
+                        None => yes!(),
+                    }
+                )
             }
             syn::Expr::GetField(eb2) => expr_contains_match(e1, &eb2.base),
             _ => unimplemented!("unknown expression"),
@@ -597,22 +633,15 @@ fn type_matches(ty1: &syn::Type, ty2: &syn::Type, self_type: Option<&syn::Type>)
                 ty2p.mutability == ty1p.mutability
                     && type_matches(&ty1p.elem, &ty2p.elem, self_type)
             }
-            (
-                syn::Type::Path(syn::TypePath {
-                    path: ref path1, ..
-                }),
-                syn::Type::Path(syn::TypePath {
-                    path: ref path2, ..
-                }),
-            ) => {
-                if path2.segments.len() == 1 && path2.segments[0].ident == "Self" {
+            (syn::Type::Path(ty1p), syn::Type::Path(ty2p)) => {
+                if ty2p.path.segments.len() == 1 && ty2p.path.segments[0].ident == "Self" {
                     if let Some(sty2) = self_type {
                         type_matches(ty1, sty2, None)
                     } else {
                         false
                     }
                 } else {
-                    path_matches(path1, path2)
+                    path_matches(&ty1p.path, &ty2p.path)
                 }
             }
             _ => false,
@@ -723,9 +752,9 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         acc.push_str("\x1b[0m");
         if depth == 0 {
         } else if depth % 3 == 1 {
-            acc.push_str("\x1b[1m\x1b[93m");
+            acc.push_str("\x1b[1m\x1b[97m\x1b[43m");
         } else if depth % 3 == 2 {
-            acc.push_str("\x1b[1m\x1b[91m");
+            acc.push_str("\x1b[1m\x1b[97m\x1b[41m");
         } else {
             acc.push_str("\x1b[1m\x1b[94m");
         }
@@ -740,10 +769,14 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         .map(&span_bounds)
         .map(|(l, h)| (l - start, h - start))
         .collect();
-    //#[cfg(test)] // Check that highlights are nested
-    //highlights.clone().into_iter().flat_map(|x| std::iter::repeat(x).zip(highlights.clone())).for_each(|((l1, h1), (l2, h2))| {
-    //    assert!((l1 <= l2 && h1 >= h2) || (l2 <= l1 && h2 >= h1));
-    //});
+    // Check that highlights are nested (if they're not, something went very wrong)
+    highlights
+        .clone()
+        .into_iter()
+        .flat_map(|x| std::iter::repeat(x).zip(highlights.clone()))
+        .for_each(|((l1, h1), (l2, h2))| {
+            assert!((l1 <= l2 && h1 >= h2) || (l2 <= l1 && h2 >= h1));
+        });
     highlights.sort_by(|b1, b2| cmp_bounds(*b1, *b2));
 
     let mut acc = "".to_string();
@@ -817,11 +850,9 @@ fn find_and_print_matches_in_impl_items<'a, I>(
     I: IntoIterator<Item = syn::ImplItem>,
 {
     items.into_iter().for_each(|item| match item {
-        syn::ImplItem::Const(_) => {}
         syn::ImplItem::Method(m) => {
             find_and_print_matches_in_implitem_method(m, file, impl_type, query)
         }
-        syn::ImplItem::Type(_) => {}
         syn::ImplItem::Macro(m) => {
             let outer_last_segment = m.mac.path.segments.last().map(|s| s.ident.to_string());
             if outer_last_segment == Some(String::from("verus")) {
@@ -834,8 +865,6 @@ fn find_and_print_matches_in_impl_items<'a, I>(
                 find_and_print_matches_in_items(macro_content.items.into_iter(), file, query);
             }
         }
-        syn::ImplItem::Verbatim(_) => {}
-        syn::ImplItem::BroadcastGroup(_) => {}
         _ => {}
     });
 }
@@ -847,11 +876,7 @@ where
 {
     items.for_each(|item| {
         match item {
-            // syn::Item::Const(ItemConst) => {},
-            // syn::Item::Enum(ItemEnum) => {},
-            // syn::Item::ExternCrate(ItemExternCrate) => {},
             syn::Item::Fn(i) => find_and_print_matches_in_item_fn(i, file, query),
-            // syn::Item::ForeignMod(ItemForeignMod) => {},
             syn::Item::Impl(i) => {
                 find_and_print_matches_in_impl_items(i.items, file, &i.self_ty, query)
             }
@@ -867,19 +892,11 @@ where
                     find_and_print_matches_in_items(macro_content.items.into_iter(), file, query);
                 }
             }
-            // syn::Item::Macro2(ItemMacro2) => {},
-            syn::Item::Mod(syn::ItemMod { content: Some((_, items)), .. }) => {
-                find_and_print_matches_in_items(items.into_iter(), file, query)
-            },
-            // syn::Item::Static(ItemStatic) => {},
-            // syn::Item::Struct(ItemStruct) => {},
+            syn::Item::Mod(syn::ItemMod {
+                content: Some((_, items)),
+                ..
+            }) => find_and_print_matches_in_items(items.into_iter(), file, query),
             // syn::Item::Trait(ItemTrait) => {},
-            // syn::Item::TraitAlias(ItemTraitAlias) => {},
-            // syn::Item::Type(ItemType) => {},
-            // syn::Item::Union(ItemUnion) => {},
-            // syn::Item::Use(ItemUse) => {},
-            // syn::Item::Verbatim(TokenStream) => {},
-            // syn::Item::Global(Global) => {},
             _ => {}
         }
     });
@@ -1239,6 +1256,10 @@ mod test {
         let query = "foo(3)";
         let expr = "foo(3 as gobbledygook)";
         check_expr_matches(query, expr, true);
+
+        let query = "foo(3)";
+        let expr = "foo(3: bool)";
+        check_expr_matches(query, expr, true);
     }
 
     #[test]
@@ -1593,5 +1614,24 @@ mod test {
         //let sig = "fn foo(x: &int)";
         //let impl_type = None;
         //check_sig_matches(query, sig, impl_type, true);
+    }
+
+    #[test]
+    fn test_field() {
+        let query = "foo.bar";
+        let expr = "foo.bar";
+        check_expr_matches(query, expr, true);
+
+        let query = "_.bar";
+        let expr = "foo.bar";
+        check_expr_matches(query, expr, true);
+
+        let query = "_.0";
+        let expr = "foo.0";
+        check_expr_matches(query, expr, true);
+
+        let query = "_.bar";
+        let expr = "foo.baz";
+        check_expr_matches(query, expr, false);
     }
 }
