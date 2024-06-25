@@ -372,6 +372,7 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                 expr_matches(&eb1.base, &eb2.base)
             )
         }
+        (syn::Expr::Field(_), _) => None,
         (syn::Expr::MethodCall(eb1), syn::Expr::MethodCall(eb2)) => {
             and!(
                 yes_if!(eb1.method == eb2.method),
