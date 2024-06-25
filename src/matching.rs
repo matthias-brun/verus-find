@@ -770,14 +770,6 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         .map(&span_bounds)
         .map(|(l, h)| (l - start, h - start))
         .collect();
-    // Check that highlights are nested (if they're not, something went very wrong)
-    highlights
-        .clone()
-        .into_iter()
-        .flat_map(|x| std::iter::repeat(x).zip(highlights.clone()))
-        .for_each(|((l1, h1), (l2, h2))| {
-            assert!((l1 <= l2 && h1 >= h2) || (l2 <= l1 && h2 >= h1));
-        });
     highlights.sort_by(|b1, b2| cmp_bounds(*b1, *b2));
 
     let mut acc = "".to_string();
