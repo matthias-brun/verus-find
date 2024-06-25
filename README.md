@@ -4,7 +4,11 @@ signature and/or whose requires and ensures clauses or function body contain a g
 
 [![Demo](https://asciinema.org/a/MJA4otTMWkblwCtN1rnsUKrWP.svg)](https://asciinema.org/a/MJA4otTMWkblwCtN1rnsUKrWP)
 
-## Input
+
+## Setup and input files
+
+Setting up `verus-find` currently requires cloning the repository and running `cargo build` to build
+the binary.
 
 You can either search in a single Verus file given as `--file <path_to_verus_file>` or in a set of
 Verus files given by a dependency file with `--deps-file <path_to_deps_file>`. A dependency file can
