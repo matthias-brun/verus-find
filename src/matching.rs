@@ -753,9 +753,9 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         acc.push_str("\x1b[0m");
         if depth == 0 {
         } else if depth % 3 == 1 {
-            acc.push_str("\x1b[1m\x1b[97m\x1b[43m");
+            acc.push_str("\x1b[1m\x1b[93m");
         } else if depth % 3 == 2 {
-            acc.push_str("\x1b[1m\x1b[97m\x1b[41m");
+            acc.push_str("\x1b[1m\x1b[91m");
         } else {
             acc.push_str("\x1b[1m\x1b[94m");
         }
