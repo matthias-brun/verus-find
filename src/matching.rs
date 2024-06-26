@@ -384,8 +384,8 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
             // "_.index(_)" should match "_[_]"
             and!(
                 yes_if!(eb1.method == "index" && eb1.args.len() == 1),
-                expr_matches(&eb2.expr, &eb1.receiver),
-                expr_matches(&eb2.index, &eb1.args[0])
+                expr_matches(&eb1.receiver, &eb2.expr),
+                expr_matches(&eb1.args[0], &eb2.index)
             )
         }
         (syn::Expr::MethodCall(_), _) => None,
@@ -1502,11 +1502,23 @@ mod test {
         let expr = "x[y]";
         check_expr_matches(query, expr, true);
 
+        let query = "x[_]";
+        let expr = "x[y]";
+        check_expr_matches(query, expr, true);
+
         let query = "x[y]";
         let expr = "x.index(y)";
         check_expr_matches(query, expr, true);
 
+        let query = "x[_]";
+        let expr = "x.index(y)";
+        check_expr_matches(query, expr, true);
+
         let query = "x.index(y)";
+        let expr = "x[y]";
+        check_expr_matches(query, expr, true);
+
+        let query = "x.index(_)";
         let expr = "x[y]";
         check_expr_matches(query, expr, true);
     }
