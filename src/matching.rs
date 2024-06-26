@@ -74,6 +74,7 @@ macro_rules! or {
 //}
 
 pub struct Query {
+    reqens: Option<syn::Expr>,
     req: Option<syn::Expr>,
     ens: Option<syn::Expr>,
     _body: Option<syn::Expr>,
@@ -149,17 +150,23 @@ pub fn sig_matches(
 
 impl Query {
     pub fn new(
+        reqens: Option<syn::Expr>,
         req: Option<syn::Expr>,
         ens: Option<syn::Expr>,
         body: Option<syn::Expr>,
         sig: Option<syn::Signature>,
     ) -> Self {
         Query {
+            reqens,
             req,
             ens,
             _body: body,
             sig,
         }
+    }
+
+    pub fn reqens(&self) -> Option<&syn::Expr> {
+        self.reqens.as_ref()
     }
 
     pub fn req(&self) -> Option<&syn::Expr> {
@@ -806,30 +813,24 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
     acc
 }
 
-pub fn print_fn_with_highlights(file: &str, item: syn::ItemFn, highlights: &Vec<Span>) {
-    println!(
-        "\x1b[32m\x1b[1m{}:{}:\x1b[0m\n{}",
-        file,
-        item.sig.span().start().line,
-        add_highlights(&item.sig, highlights)
-    );
-}
-
-pub fn print_method_with_highlights(
+pub fn print_sig_with_highlights(
     file: &str,
-    impl_type: &syn::Type,
-    item: syn::ImplItemMethod,
+    item: syn::Signature,
+    impl_type: Option<&syn::Type>,
     highlights: &Vec<Span>,
 ) {
     // TODO: probably want to unindent the result?
-    // TODO: the impl message here might be wrong for traits and the like (if those are
-    // ImplItemMethod?)
+    let impl_msg = match impl_type {
+        Some(ty) => format!(" (in `impl {}`)", ty.span().source_text().unwrap()),
+        None => "".to_string(),
+    };
+
     println!(
-        "\x1b[32m\x1b[1m{}:{}: (in `impl {}`)\x1b[0m\n{}",
+        "\x1b[32m\x1b[1m{}:{}:{}\x1b[0m\n{}",
         file,
-        item.sig.span().start().line,
-        impl_type.span().source_text().unwrap(),
-        add_highlights(&item.sig, highlights)
+        item.span().start().line,
+        impl_msg,
+        add_highlights(&item, highlights)
     );
 }
 
@@ -844,7 +845,7 @@ fn find_and_print_matches_in_impl_items<'a, I>(
 {
     items.into_iter().for_each(|item| match item {
         syn::ImplItem::Method(m) => {
-            find_and_print_matches_in_implitem_method(m, file, impl_type, query)
+            find_and_print_matches_in_signature(m.sig, file, Some(impl_type), query)
         }
         syn::ImplItem::Macro(m) => {
             let outer_last_segment = m.mac.path.segments.last().map(|s| s.ident.to_string());
@@ -869,7 +870,7 @@ where
 {
     items.for_each(|item| {
         match item {
-            syn::Item::Fn(i) => find_and_print_matches_in_item_fn(i, file, query),
+            syn::Item::Fn(i) => find_and_print_matches_in_signature(i.sig, file, None, query),
             syn::Item::Impl(i) => {
                 find_and_print_matches_in_impl_items(i.items, file, &i.self_ty, query)
             }
@@ -895,57 +896,38 @@ where
     });
 }
 
-/// Checks if `req_expr` matches an expression in `i`'s `requires` clause and if `ens_expr` matches
-/// an expression in its `ensures` clause. If so, prints the matches. Both search expressions are
-/// optional and only considered if `Some`.
-fn find_and_print_matches_in_implitem_method(
-    i: syn::ImplItemMethod,
+fn find_and_print_matches_in_signature(
+    sig: syn::Signature,
     file: &str,
-    impl_type: &syn::Type,
+    impl_type: Option<&syn::Type>,
     query: &Query,
 ) {
+    // If the reqens argument is present, req and ens are both None
+    let reqens_matches = query.reqens().map_or(yes!(), |q| {
+        or!(
+            sig.requires
+                .as_ref()
+                .and_then(|req| exprs_contain_match(q, req.exprs.exprs.iter())),
+            sig.ensures
+                .as_ref()
+                .and_then(|ens| exprs_contain_match(q, ens.exprs.exprs.iter()))
+        )
+    });
     let req_matches = query.req().map_or(yes!(), |qreq| {
-        i.sig
-            .requires
+        sig.requires
             .as_ref()
             .and_then(|req| exprs_contain_match(qreq, req.exprs.exprs.iter()))
     });
     let ens_matches = query.ens().map_or(yes!(), |qens| {
-        i.sig
-            .ensures
+        sig.ensures
             .as_ref()
             .and_then(|ens| exprs_contain_match(qens, ens.exprs.exprs.iter()))
     });
     let sig_matches = query
         .sig()
-        .map_or(yes!(), |qsig| sig_matches(qsig, &i.sig, Some(impl_type)));
-    match and!(req_matches, ens_matches, sig_matches) {
-        Some(hls) => print_method_with_highlights(file, impl_type, i, &hls),
-        None => {}
-    }
-}
-
-/// Checks if `req_expr` matches an expression in `i`'s `requires` clause and if `ens_expr` matches
-/// an expression in its `ensures` clause. If so, prints the matches. Both search expressions are
-/// optional and only considered if `Some`.
-fn find_and_print_matches_in_item_fn(i: syn::ItemFn, file: &str, query: &Query) {
-    let req_matches = query.req().map_or(yes!(), |qreq| {
-        i.sig
-            .requires
-            .as_ref()
-            .and_then(|req| exprs_contain_match(qreq, req.exprs.exprs.iter()))
-    });
-    let ens_matches = query.ens().map_or(yes!(), |qens| {
-        i.sig
-            .ensures
-            .as_ref()
-            .and_then(|ens| exprs_contain_match(qens, ens.exprs.exprs.iter()))
-    });
-    let sig_matches = query
-        .sig()
-        .map_or(yes!(), |qsig| sig_matches(qsig, &i.sig, None));
-    match and!(req_matches, ens_matches, sig_matches) {
-        Some(hls) => print_fn_with_highlights(file, i, &hls),
+        .map_or(yes!(), |qsig| sig_matches(qsig, &sig, impl_type));
+    match and!(reqens_matches, req_matches, ens_matches, sig_matches) {
+        Some(hls) => print_sig_with_highlights(file, sig, impl_type, &hls),
         None => {}
     }
 }

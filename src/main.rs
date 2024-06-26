@@ -4,51 +4,79 @@ use syn_verus as syn;
 mod matching;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about)]
 struct Args {
     #[clap(flatten)]
-    ag: ArgGroup,
-    #[arg(short, long)]
+    ag_file: ArgGroupFile,
+    #[clap(flatten)]
+    ag_query: ArgGroupQuery,
+}
+
+#[derive(Parser, Debug)]
+#[group(multiple = true)]
+struct ArgGroupQuery {
+    #[arg(
+        long,
+        value_name = "expr",
+        help = "Find expression in requires or ensures"
+    )]
+    reqens: Option<String>,
+    #[arg(short, long, value_name = "expr", help = "Find expression in requires")]
     req: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "expr", help = "Find expression in ensures")]
     ens: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "sig", help = "Find signature pattern")]
     sig: Option<String>,
-    #[arg(short, long)]
-    body: Option<String>,
+    //#[arg(short, long, value_name = "expr", help = "Expression to find in function body")]
+    //body: Option<String>,
 }
 
 #[derive(Parser, Debug)]
 #[group(required = true, multiple = false)]
-struct ArgGroup {
-    #[arg(short, long, conflicts_with("file"))]
+struct ArgGroupFile {
+    #[arg(
+        short,
+        long,
+        value_name = "dependency file",
+        help = "Dependency file for project to search in",
+        conflicts_with("file")
+    )]
     deps_file: Option<String>,
-    #[arg(short, long)]
+    #[arg(
+        short,
+        long,
+        value_name = "verus file",
+        help = "Verus file to search in"
+    )]
     file: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
-    let req: Option<syn::Expr> = args.req.map(|expr| {
+    let reqens: Option<syn::Expr> = args.ag_query.reqens.map(|expr| {
         syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
     });
-    let ens: Option<syn::Expr> = args.ens.map(|expr| {
+    let req: Option<syn::Expr> = args.ag_query.req.map(|expr| {
         syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
     });
-    let body: Option<syn::Expr> = args.body.map(|_expr| {
-        panic!("--body is not yet supported");
-        //syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
-    });
-    let sig: Option<syn::Signature> = args.sig.map(|expr| {
+    let ens: Option<syn::Expr> = args.ag_query.ens.map(|expr| {
         syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
     });
-    let query = matching::Query::new(req, ens, body, sig);
+    let body = None;
+    //let body: Option<syn::Expr> = args.body.map(|_expr| {
+    //    panic!("--body is not yet supported");
+    //    //syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+    //});
+    let sig: Option<syn::Signature> = args.ag_query.sig.map(|expr| {
+        syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+    });
+    let query = matching::Query::new(reqens, req, ens, body, sig);
 
-    if let Some(file) = args.ag.file {
+    if let Some(file) = args.ag_file.file {
         process_file(&std::path::Path::new(&file), &query);
     } else {
         let (root_path, files) =
-            get_dependencies(&std::path::Path::new(&args.ag.deps_file.unwrap()))
+            get_dependencies(&std::path::Path::new(&args.ag_file.deps_file.unwrap()))
                 .expect("Failed to get dependencies from deps file");
         files
             .iter()
