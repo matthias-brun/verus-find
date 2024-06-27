@@ -38,7 +38,7 @@ macro_rules! and {
         match $e1 {
             Some(hl1) => {
                 match and!($( $es ), *) {
-                    Some(hl2) => Some(vec![hl1,hl2].concat()),
+                    Some(hl2) => Some([hl1,hl2].concat()),
                     None      => None
                 }
             },
@@ -53,7 +53,7 @@ macro_rules! or {
         match $e1 {
             Some(hl1) => {
                 match or!($( $es ), *) {
-                    Some(hl2) => Some(vec![hl1,hl2].concat()),
+                    Some(hl2) => Some([hl1,hl2].concat()),
                     None      => Some(hl1)
                 }
             },
@@ -100,7 +100,7 @@ pub fn sig_matches(
     };
     let qname = query.ident.to_string();
     let sname = sig.ident.to_string();
-    let name_matches = yes_if!((qname == "any".to_string()) || sname.contains(&qname));
+    let name_matches = yes_if!((qname == *"any") || sname.contains(&qname));
     let args_match = match_iter_with_holes(
         query.inputs.iter(),
         sig.inputs.iter(),
@@ -140,7 +140,7 @@ pub fn sig_matches(
         match (&query.output, &sig.output) {
             (syn::ReturnType::Default, _) => yes!(),
             (syn::ReturnType::Type(_, _, _, ty1), syn::ReturnType::Type(_, _, _, ty2)) => {
-                yes_if!(type_matches(ty1, &ty2, impl_type), with_span: ty2.span())
+                yes_if!(type_matches(ty1, ty2, impl_type), with_span: ty2.span())
             }
             (syn::ReturnType::Type(_, _, _, _), _) => None,
         }
@@ -331,16 +331,15 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
             // "_ == _" should match "equal(_, _)"
             and!(
                 yes_if!(
-                    (match eb1.op {
-                        syn::BinOp::Eq(_) => true,
-                        _ => false,
-                    }) && (match &*eb2.func {
-                        syn::Expr::Path(syn::ExprPath {
-                            path: syn::Path { segments, .. },
-                            ..
-                        }) => segments.len() == 1 && segments.first().unwrap().ident == "equal",
-                        _ => false,
-                    }) && eb2.args.len() == 2
+                    matches!(eb1.op, syn::BinOp::Eq(_))
+                        && (match &*eb2.func {
+                            syn::Expr::Path(syn::ExprPath {
+                                path: syn::Path { segments, .. },
+                                ..
+                            }) => segments.len() == 1 && segments.first().unwrap().ident == "equal",
+                            _ => false,
+                        })
+                        && eb2.args.len() == 2
                 ),
                 expr_matches(&eb1.left, &eb2.args[0]),
                 expr_matches(&eb1.right, &eb2.args[1])
@@ -363,10 +362,8 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                             ..
                         }) => segments.len() == 1 && segments.first().unwrap().ident == "equal",
                         _ => false,
-                    }) && (match eb2.op {
-                        syn::BinOp::Eq(_) => true,
-                        _ => false,
-                    }) && eb1.args.len() == 2
+                    }) && matches!(eb2.op, syn::BinOp::Eq(_))
+                        && eb1.args.len() == 2
                 ),
                 expr_matches(&eb1.args[0], &eb2.left),
                 expr_matches(&eb1.args[1], &eb2.right)
@@ -447,7 +444,7 @@ fn stmt_contains_match(e1: &syn::Expr, stmt: &syn::Stmt) -> Option<Vec<Span>> {
 fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
     //println!("expr_contains_match:\n{:?}\n", e2);
     match expr_matches(e1, e2) {
-        Some(hl) => Some(vec![hl, vec![e2.span()]].concat()),
+        Some(hl) => Some([hl, vec![e2.span()]].concat()),
         None => match e2 {
             syn::Expr::Array(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Array")
@@ -496,7 +493,7 @@ fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                         stmts_contain_match(e1, eb2.then_branch.stmts.iter()),
                         eb2.else_branch
                             .as_ref()
-                            .map_or(None, |(_, e)| expr_contains_match(e1, e))
+                            .and_then(|(_, e)| expr_contains_match(e1, e))
                     )
                 )
             }
@@ -535,10 +532,7 @@ fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
             syn::Expr::Repeat(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Repeat")
             }
-            syn::Expr::Return(eb2) => eb2
-                .expr
-                .as_ref()
-                .map_or(None, |e| expr_contains_match(e1, e)),
+            syn::Expr::Return(eb2) => eb2.expr.as_ref().and_then(|e| expr_contains_match(e1, e)),
             syn::Expr::Struct(eb2) => {
                 or!(
                     eb2.fields
@@ -546,7 +540,7 @@ fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
                         .find_map(|fv| expr_contains_match(e1, &fv.expr)),
                     eb2.rest
                         .as_ref()
-                        .map_or(None, |expr| expr_contains_match(e1, &expr))
+                        .and_then(|expr| expr_contains_match(e1, expr))
                 )
             }
             syn::Expr::Try(_) => {
@@ -558,7 +552,7 @@ fn expr_contains_match(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
             syn::Expr::Tuple(eb2) => eb2
                 .elems
                 .iter()
-                .find_map(|expr| expr_contains_match(e1, &expr)),
+                .find_map(|expr| expr_contains_match(e1, expr)),
             syn::Expr::Type(eb2) => expr_matches(e1, &eb2.expr),
 
             syn::Expr::Unary(eb2) => expr_contains_match(e1, &eb2.expr),
@@ -717,19 +711,19 @@ fn is_wildcard<S: Spanned>(item: S) -> bool {
 fn binop_matches(bop1: &syn::BinOp, bop2: &syn::BinOp) -> bool {
     use syn::BinOp::*;
     bop1 == bop2
-        || match (bop1, bop2) {
-            (Eq(_), ExtEq(_)) => true,
-            (Eq(_), BigEq(_)) => true,
-            (BigEq(_), Eq(_)) => true,
-            (Ne(_), BigNe(_)) => true,
-            (BigNe(_), Ne(_)) => true,
-            (ExtEq(_), ExtDeepEq(_)) => true,
-            (ExtDeepEq(_), ExtEq(_)) => true,
-            _ => false,
-        }
+        || matches!(
+            (bop1, bop2),
+            (Eq(_), ExtEq(_))
+                | (Eq(_), BigEq(_))
+                | (BigEq(_), Eq(_))
+                | (Ne(_), BigNe(_))
+                | (BigNe(_), Ne(_))
+                | (ExtEq(_), ExtDeepEq(_))
+                | (ExtDeepEq(_), ExtEq(_))
+        )
 }
 
-fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
+fn add_highlights<S: Spanned>(item: S, highlights: &[Span]) -> String {
     // Extracts start and end of the span. I'm sure there's a proper way of doing this but alas, I
     // don't know what it is.
     fn span_bounds(span: &Span) -> (usize, usize) {
@@ -738,21 +732,9 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         (x[1].parse().unwrap(), x[3].parse().unwrap())
     }
 
-    fn cmp_bounds((l1, h1): (usize, usize), (l2, h2): (usize, usize)) -> std::cmp::Ordering {
-        if l1 < l2 {
-            std::cmp::Ordering::Less
-        } else if l1 == l2 {
-            if h1 < h2 {
-                std::cmp::Ordering::Greater
-            } else if h1 == h2 {
-                std::cmp::Ordering::Equal
-            } else {
-                std::cmp::Ordering::Less
-            }
-        } else {
-            std::cmp::Ordering::Greater
-        }
-    }
+    //fn cmp_bounds((l1, h1): (usize, usize), (l2, h2): (usize, usize)) -> std::cmp::Ordering {
+    //    (l1, h1).cmp(&(l2, h2))
+    //}
 
     fn highlight_seq(depth: usize) -> String {
         let mut acc = "".to_string();
@@ -777,13 +759,13 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         .map(&span_bounds)
         .map(|(l, h)| (l - start, h - start))
         .collect();
-    highlights.sort_by(|b1, b2| cmp_bounds(*b1, *b2));
+    highlights.sort();
 
     let mut acc = "".to_string();
     let mut ends = vec![];
     let mut idx = 0;
     for (l, h) in highlights {
-        while ends.len() > 0 && *ends.last().unwrap() <= l {
+        while !ends.is_empty() && *ends.last().unwrap() <= l {
             let end = *ends.last().unwrap();
             acc.push_str(&source[idx..end]);
             idx = end;
@@ -795,7 +777,7 @@ fn add_highlights<S: Spanned>(item: S, highlights: &Vec<Span>) -> String {
         ends.push(h);
         acc.push_str(&highlight_seq(ends.len()));
     }
-    while ends.len() > 0 {
+    while !ends.is_empty() {
         let end = *ends.last().unwrap();
         if end <= idx {
             assert!(end == idx);
@@ -817,7 +799,7 @@ pub fn print_sig_with_highlights(
     file: &str,
     item: syn::Signature,
     impl_type: Option<&syn::Type>,
-    highlights: &Vec<Span>,
+    highlights: &[Span],
 ) {
     // TODO: probably want to unindent the result?
     let impl_msg = match impl_type {
@@ -835,7 +817,7 @@ pub fn print_sig_with_highlights(
 }
 
 /// Finds and prints the first match in each item in `items`. Recurses into the `verus` macro.
-fn find_and_print_matches_in_impl_items<'a, I>(
+fn find_and_print_matches_in_impl_items<I>(
     items: I,
     file: &str,
     impl_type: &syn::Type,
@@ -864,7 +846,7 @@ fn find_and_print_matches_in_impl_items<'a, I>(
 }
 
 /// Finds and prints the first match in each item in `items`. Recurses into the `verus` macro.
-pub fn find_and_print_matches_in_items<'a, I>(items: I, file: &str, query: &Query)
+pub fn find_and_print_matches_in_items<I>(items: I, file: &str, query: &Query)
 where
     I: Iterator<Item = syn::Item>,
 {
@@ -926,9 +908,8 @@ fn find_and_print_matches_in_signature(
     let sig_matches = query
         .sig()
         .map_or(yes!(), |qsig| sig_matches(qsig, &sig, impl_type));
-    match and!(reqens_matches, req_matches, ens_matches, sig_matches) {
-        Some(hls) => print_sig_with_highlights(file, sig, impl_type, &hls),
-        None => {}
+    if let Some(hls) = and!(reqens_matches, req_matches, ens_matches, sig_matches) {
+        print_sig_with_highlights(file, sig, impl_type, &hls)
     }
 }
 
@@ -937,12 +918,13 @@ mod test {
 
     #[allow(dead_code)]
     fn check_sig_matches(query: &str, sig: &str, impl_type: Option<&str>, expect: bool) {
-        let query_ast: syn::Signature =
-            syn::parse_str(&query).expect(&format!("Failed to parse \"{}\" into signature", query));
-        let sig_ast: syn::Signature =
-            syn::parse_str(&sig).expect(&format!("Failed to parse \"{}\" into signature", sig));
-        let impl_type_ast: Option<syn::Type> = impl_type
-            .map(|ty| syn::parse_str(&ty).expect(&format!("Failed to parse \"{}\" into type", ty)));
+        let query_ast: syn::Signature = syn::parse_str(query)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into signature", query));
+        let sig_ast: syn::Signature = syn::parse_str(sig)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into signature", sig));
+        let impl_type_ast: Option<syn::Type> = impl_type.map(|ty| {
+            syn::parse_str(ty).unwrap_or_else(|_| panic!("Failed to parse \"{}\" into type", ty))
+        });
         let res = sig_matches(&query_ast, &sig_ast, impl_type_ast.as_ref());
         if res.is_some() != expect {
             if expect {
@@ -964,10 +946,10 @@ mod test {
 
     #[allow(dead_code)]
     fn check_expr_matches(query: &str, expr: &str, expect: bool) {
-        let query_ast: syn::Expr = syn::parse_str(&query)
-            .expect(&format!("Failed to parse \"{}\" into expression", query));
-        let expr_ast: syn::Expr =
-            syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr));
+        let query_ast: syn::Expr = syn::parse_str(query)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", query));
+        let expr_ast: syn::Expr = syn::parse_str(expr)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr));
         let res = expr_matches(&query_ast, &expr_ast);
         if res.is_some() != expect {
             if expect {

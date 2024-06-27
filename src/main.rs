@@ -54,29 +54,33 @@ struct ArgGroupFile {
 fn main() {
     let args = Args::parse();
     let reqens: Option<syn::Expr> = args.ag_query.reqens.map(|expr| {
-        syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+        syn::parse_str(&expr)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr))
     });
     let req: Option<syn::Expr> = args.ag_query.req.map(|expr| {
-        syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+        syn::parse_str(&expr)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr))
     });
     let ens: Option<syn::Expr> = args.ag_query.ens.map(|expr| {
-        syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+        syn::parse_str(&expr)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr))
     });
     let body = None;
     //let body: Option<syn::Expr> = args.body.map(|_expr| {
     //    panic!("--body is not yet supported");
-    //    //syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+    //    //syn::parse_str(&expr).unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr))
     //});
     let sig: Option<syn::Signature> = args.ag_query.sig.map(|expr| {
-        syn::parse_str(&expr).expect(&format!("Failed to parse \"{}\" into expression", expr))
+        syn::parse_str(&expr)
+            .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr))
     });
     let query = matching::Query::new(reqens, req, ens, body, sig);
 
     if let Some(file) = args.ag_file.file {
-        process_file(&std::path::Path::new(&file), &query);
+        process_file(std::path::Path::new(&file), &query);
     } else {
         let (root_path, files) =
-            get_dependencies(&std::path::Path::new(&args.ag_file.deps_file.unwrap()))
+            get_dependencies(std::path::Path::new(&args.ag_file.deps_file.unwrap()))
                 .expect("Failed to get dependencies from deps file");
         files
             .iter()
@@ -128,7 +132,7 @@ fn get_dependencies(
         .skip(1)
         .map(|x| dep_file_folder.join(Path::new(x)))
         .collect();
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 
     if result.len() == 1 {
         return Ok((PathBuf::new(), vec![result[0].clone()]));
