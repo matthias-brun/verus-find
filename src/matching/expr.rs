@@ -1,11 +1,11 @@
 use super::*;
 
-pub fn contains_match_exprs<'a, I>(exprs: I, query: &syn::Expr) -> Option<Highlights>
+pub fn contains_match_exprs<'a, I>(query: &syn::Expr, exprs: I) -> Option<Highlights>
 where
     I: Iterator<Item = &'a syn::Expr>,
 {
     let matches = exprs
-        .map(|expr| contains_match_expr(expr, query))
+        .map(|expr| contains_match_expr(query, expr))
         .filter(|x| x.is_some())
         .collect::<Vec<_>>();
     if matches.is_empty() {
@@ -207,11 +207,14 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
     }
 }
 
+// Check if e2 contains match for e1
 pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
+    //println!("contains_match_expr:\n{:?}", e1);
     //println!("contains_match_expr:\n{:?}\n", e2);
-    match expr_matches(e1, e2) {
-        Some(hl) => Some([hl, vec![e2.span()]].concat()),
-        None => match e2 {
+    if let Some(hl) = expr_matches(e1, e2) {
+        Some([hl, vec![e2.span()]].concat())
+    } else {
+        match e2 {
             syn::Expr::Array(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Array")
             }
@@ -239,7 +242,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> 
             syn::Expr::Call(eb2) => {
                 or!(
                     contains_match_expr(e1, &eb2.func),
-                    contains_match_exprs(eb2.args.iter(), e1)
+                    contains_match_exprs(e1, eb2.args.iter())
                 )
             }
             syn::Expr::Cast(eb2) => contains_match_expr(e1, &eb2.expr),
@@ -286,7 +289,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> 
             syn::Expr::MethodCall(eb2) => {
                 or!(
                     contains_match_expr(&eb2.receiver, e1),
-                    contains_match_exprs(eb2.args.iter(), e1)
+                    contains_match_exprs(e1, eb2.args.iter())
                 )
             }
             syn::Expr::Paren(eb2) => contains_match_expr(e1, &eb2.expr),
@@ -373,6 +376,6 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> 
             }
             syn::Expr::GetField(eb2) => contains_match_expr(e1, &eb2.base),
             _ => unimplemented!("unknown expression"),
-        },
+        }
     }
 }

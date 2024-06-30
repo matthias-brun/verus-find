@@ -259,21 +259,21 @@ fn contains_match_signature(
         or!(
             sig.requires
                 .as_ref()
-                .and_then(|req| contains_match_exprs(req.exprs.exprs.iter(), q)),
+                .and_then(|req| contains_match_exprs(q, req.exprs.exprs.iter())),
             sig.ensures
                 .as_ref()
-                .and_then(|ens| contains_match_exprs(ens.exprs.exprs.iter(), q))
+                .and_then(|ens| contains_match_exprs(q, ens.exprs.exprs.iter()))
         )
     });
     let req_matches = query.req().map_or(yes!(), |qreq| {
         sig.requires
             .as_ref()
-            .and_then(|req| contains_match_exprs(req.exprs.exprs.iter(), qreq))
+            .and_then(|req| contains_match_exprs(qreq, req.exprs.exprs.iter()))
     });
     let ens_matches = query.ens().map_or(yes!(), |qens| {
         sig.ensures
             .as_ref()
-            .and_then(|ens| contains_match_exprs(ens.exprs.exprs.iter(), qens))
+            .and_then(|ens| contains_match_exprs(qens, ens.exprs.exprs.iter()))
     });
     let sig_matches = query
         .sig()
