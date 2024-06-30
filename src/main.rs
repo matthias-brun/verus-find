@@ -99,11 +99,9 @@ fn process_file(input_path: &std::path::Path, query: &matching::Query) {
             format!("failed to parse file {}: {}", input_path.display(), e)
         })
         .unwrap();
-    matching::find_and_print_matches_in_items(
-        file.items.into_iter(),
-        input_path.to_str().unwrap(),
-        query,
-    );
+    matching::other::get_matches_items(file.items.iter(), query, input_path.to_str().unwrap())
+        .into_iter()
+        .for_each(|m| m.print());
 }
 
 // Copied from line_count tool
