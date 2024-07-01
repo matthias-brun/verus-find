@@ -1,7 +1,7 @@
 use clap::Parser;
 use syn_verus as syn;
 
-mod matching;
+pub mod matching;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]

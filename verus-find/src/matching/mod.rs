@@ -1,4 +1,5 @@
 mod expr;
+pub mod fmt;
 pub mod other;
 #[cfg(test)]
 mod test;
@@ -86,6 +87,8 @@ pub(crate) use or;
 //        })
 //}
 
+type Highlights = Vec<Span>;
+
 pub struct Query {
     reqens: Option<syn::Expr>,
     req: Option<syn::Expr>,
@@ -133,7 +136,7 @@ impl Query {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Match {
     ImplItem {
         item: syn::ImplItemMethod,
@@ -149,120 +152,68 @@ pub enum Match {
 }
 
 impl Match {
-    pub fn print(self) {
+    pub fn file(&self) -> &str {
         match self {
-            Match::ImplItem {
-                item,
-                file,
-                impl_type,
-                highlights,
-            } => {
-                println!(
-                    "{}",
-                    format_sig_with_highlights(&file, &item.sig, Some(&impl_type), &highlights)
-                );
-            }
-            Match::Item {
-                item,
-                file,
-                highlights,
-            } => {
-                println!(
-                    "{}",
-                    format_sig_with_highlights(&file, &item.sig, None, &highlights)
-                );
-            }
+            Match::ImplItem { file, .. } => file,
+            Match::Item { file, .. } => file,
         }
     }
-}
 
-type Highlights = Vec<Span>;
-
-fn add_highlights<S: Spanned>(item: S, highlights: &[Span]) -> String {
-    // Extracts start and end of the span. I'm sure there's a proper way of doing this but alas, I
-    // don't know what it is.
-    fn span_bounds(span: &Span) -> (usize, usize) {
-        let x = format!("{:?}", span);
-        let x: Vec<_> = x.split(|c| c == '(' || c == '.' || c == ')').collect();
-        (x[1].parse().unwrap(), x[3].parse().unwrap())
-    }
-
-    fn highlight_seq(depth: usize) -> String {
-        let mut acc = "".to_string();
-        //acc.push_str(&format!("X{}X\x1b[0m", depth));
-        acc.push_str("\x1b[0m");
-        if depth == 0 {
-        } else if depth % 3 == 1 {
-            acc.push_str("\x1b[1m\x1b[93m");
-        } else if depth % 3 == 2 {
-            acc.push_str("\x1b[1m\x1b[91m");
-        } else {
-            acc.push_str("\x1b[1m\x1b[94m");
-        }
-        acc
-    }
-    // We first convert the `highlights` spans to (usize, usize) tuples and adjust them to index
-    // from the start of the item we're printing.
-    let source = item.span().source_text().unwrap();
-    let start = span_bounds(&item.span()).0;
-    let mut highlights: Vec<_> = highlights
-        .iter()
-        .map(&span_bounds)
-        .map(|(l, h)| (l - start, h - start))
-        .collect();
-    highlights.sort();
-
-    let mut acc = "".to_string();
-    let mut ends = vec![];
-    let mut idx = 0;
-    for (l, h) in highlights {
-        while !ends.is_empty() && *ends.last().unwrap() <= l {
-            let end = *ends.last().unwrap();
-            acc.push_str(&source[idx..end]);
-            idx = end;
-            ends.pop();
-            acc.push_str(&highlight_seq(ends.len()));
-        }
-        acc.push_str(&source[idx..l]);
-        idx = l;
-        ends.push(h);
-        acc.push_str(&highlight_seq(ends.len()));
-    }
-    while !ends.is_empty() {
-        let end = *ends.last().unwrap();
-        if end <= idx {
-            assert!(end == idx);
-            acc.push_str(&highlight_seq(ends.len()));
-            ends.pop();
-        } else {
-            acc.push_str(&highlight_seq(ends.len()));
-            ends.pop();
-            acc.push_str(&source[idx..end]);
-            idx = end;
+    pub fn sig(&self) -> &syn::Signature {
+        match self {
+            Match::ImplItem { item, .. } => &item.sig,
+            Match::Item { item, .. } => &item.sig,
         }
     }
-    acc.push_str(&highlight_seq(0));
-    acc.push_str(&source[idx..]);
-    acc
-}
 
-pub fn format_sig_with_highlights(
-    file: &str,
-    item: &syn::Signature,
-    impl_type: Option<&syn::Type>,
-    highlights: &[Span],
-) -> String {
-    // TODO: probably want to unindent the result?
-    let impl_msg = match impl_type {
-        Some(ty) => format!(" (in `impl {}`)", ty.span().source_text().unwrap()),
-        None => "".to_string(),
-    };
+    pub fn impl_type(&self) -> Option<&syn::Type> {
+        match self {
+            Match::ImplItem { impl_type, .. } => Some(impl_type),
+            Match::Item { .. } => None,
+        }
+    }
 
-    format!(
-        "\x1b[32m\x1b[1m{}:{}:{}\x1b[0m\n{}",
-        file,
-        item.span().start().line,
-        impl_msg,
-        add_highlights(item, highlights)
-    )
+    pub fn highlights(&self) -> &Vec<Span> {
+        match self {
+            Match::ImplItem { highlights, .. } => highlights,
+            Match::Item { highlights, .. } => highlights,
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{}", self.as_terminal_string());
+    }
+
+    pub fn as_fmt_tokens(&self) -> Vec<fmt::FmtToken> {
+        fmt::format_sig_with_highlights(self.sig(), self.highlights())
+    }
+
+    pub fn as_terminal_string(&self) -> String {
+        format!(
+            "\x1b[32m\x1b[1m{}\x1b[0m\n{}",
+            fmt::format_location_line(self.file(), self.sig(), self.impl_type()),
+            fmt::fmt_tokens_to_terminal_string(fmt::format_sig_with_highlights(
+                self.sig(),
+                self.highlights()
+            ))
+        )
+    }
+
+    pub fn format_location_line(&self) -> String {
+        fmt::format_location_line(self.file(), self.sig(), self.impl_type())
+    }
+
+    pub fn hash(&self) -> u64 {
+        use std::hash::*;
+        let mut s = DefaultHasher::new();
+        self.file().hash(&mut s);
+        self.sig().hash(&mut s);
+        self.impl_type().hash(&mut s);
+        self.highlights()
+            .iter()
+            .map(fmt::span_bounds)
+            .collect::<Vec<_>>()
+            .hash(&mut s);
+        s.finish()
+    }
 }
