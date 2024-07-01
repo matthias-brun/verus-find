@@ -687,3 +687,10 @@ fn test_field() {
     let expr = "foo.baz";
     check_expr_matches(query, expr, false);
 }
+
+#[test]
+fn test_bug_repros() {
+    let query = "*(_.finite())";
+    let expr = "bar(seq![x].add(s))";
+    check_expr_matches(query, expr, false);
+}

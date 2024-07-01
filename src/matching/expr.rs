@@ -288,7 +288,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> 
             }
             syn::Expr::MethodCall(eb2) => {
                 or!(
-                    contains_match_expr(&eb2.receiver, e1),
+                    contains_match_expr(e1, &eb2.receiver),
                     contains_match_exprs(e1, eb2.args.iter())
                 )
             }
