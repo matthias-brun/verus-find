@@ -16,3 +16,4 @@ syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", featur
 proc-macro2 = { version = "*", features = ["span-locations"] }
 clap = { version = "*", features = [ "derive", "env" ] }
 itertools = "*"
+serde = { version = "*", features = [ "derive" ] }

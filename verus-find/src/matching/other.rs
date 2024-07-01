@@ -10,8 +10,8 @@ pub fn match_iter_with_holes<'a, I, T: 'a>(
     it1: I,
     it2: I,
     is_wild: &impl Fn(&T) -> bool,
-    is_match: &impl Fn(&T, &T) -> Option<Vec<Span>>,
-) -> Option<Vec<Span>>
+    is_match: &impl Fn(&T, &T) -> Option<Highlights>,
+) -> Option<Highlights>
 where
     I: Iterator<Item = &'a T> + Clone,
 {
@@ -77,7 +77,7 @@ pub fn matches_signature(
     query: &syn::Signature,
     sig: &syn::Signature,
     impl_type: Option<&syn::Type>,
-) -> Option<Vec<Span>> {
+) -> Option<Highlights> {
     let mode_matches = match (&query.mode, &sig.mode) {
         (syn::FnMode::Default, _) => yes!(),
         (syn::FnMode::Spec(_), syn::FnMode::Spec(_)) => yes!(),
@@ -106,16 +106,16 @@ pub fn matches_signature(
             match (&arg1.kind, &arg2.kind) {
                 // TODO: maybe don't ignore patterns
                 (syn::FnArgKind::Typed(ty1p), syn::FnArgKind::Typed(ty2p)) => {
-                    yes_if!(type_matches(&ty1p.ty, &ty2p.ty, impl_type), with_span: arg2.kind.span())
+                    yes_if!(type_matches(&ty1p.ty, &ty2p.ty, impl_type), with_span: arg2.kind.span_bounds())
                 }
                 (syn::FnArgKind::Typed(ty1p), syn::FnArgKind::Receiver(receiver)) => {
                     if let Some(ty) = impl_type {
                         match (&receiver.reference, &*ty1p.ty) {
-                            (None, _) => yes_if!(type_matches(&ty1p.ty, ty, impl_type), with_span: arg2.kind.span()),
+                            (None, _) => yes_if!(type_matches(&ty1p.ty, ty, impl_type), with_span: arg2.kind.span_bounds()),
                             (Some(_), syn::Type::Reference(reference)) => {
                                 yes_if!(
                                     (receiver.mutability.is_some() == reference.mutability.is_some())
-                                    && type_matches(&reference.elem, ty, impl_type), with_span: arg2.kind.span())
+                                    && type_matches(&reference.elem, ty, impl_type), with_span: arg2.kind.span_bounds())
                             }
                             _ => no!(),
                         }
@@ -132,7 +132,7 @@ pub fn matches_signature(
         match (&query.output, &sig.output) {
             (syn::ReturnType::Default, _) => yes!(),
             (syn::ReturnType::Type(_, _, _, ty1), syn::ReturnType::Type(_, _, _, ty2)) => {
-                yes_if!(type_matches(ty1, ty2, impl_type), with_span: ty2.span())
+                yes_if!(type_matches(ty1, ty2, impl_type), with_span: ty2.span_bounds())
             }
             (syn::ReturnType::Type(_, _, _, _), _) => None,
         }
@@ -281,7 +281,7 @@ fn contains_match_signature(
     and!(reqens_matches, req_matches, ens_matches, sig_matches)
 }
 
-pub fn args_match<'a, I>(args1: I, args2: I) -> Option<Vec<Span>>
+pub fn args_match<'a, I>(args1: I, args2: I) -> Option<Highlights>
 where
     I: Iterator<Item = &'a syn::Expr> + Clone,
 {

@@ -208,11 +208,11 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
 }
 
 // Check if e2 contains match for e1
-pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Vec<Span>> {
+pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
     //println!("contains_match_expr:\n{:?}", e1);
     //println!("contains_match_expr:\n{:?}\n", e2);
     if let Some(hl) = expr_matches(e1, e2) {
-        Some([hl, vec![e2.span()]].concat())
+        Some([hl, vec![e2.span_bounds()]].concat())
     } else {
         match e2 {
             syn::Expr::Array(_) => {

@@ -54,22 +54,13 @@ impl FmtToken {
     }
 }
 
-// Extracts start and end of the span. I'm sure there's a proper way of doing this but alas, I
-// don't know what it is.
-pub fn span_bounds(span: &Span) -> (usize, usize) {
-    let x = format!("{:?}", span);
-    let x: Vec<_> = x.split(|c| c == '(' || c == '.' || c == ')').collect();
-    (x[1].parse().unwrap(), x[3].parse().unwrap())
-}
-
-fn add_highlights<S: Spanned>(item: S, highlights: &[Span]) -> Vec<FmtToken> {
+fn add_highlights<S: Spanned>(item: S, highlights: &[(usize, usize)]) -> Vec<FmtToken> {
     // We first convert the `highlights` spans to (usize, usize) tuples and adjust them to index
     // from the start of the item we're printing.
     let source = item.span().source_text().unwrap();
-    let start = span_bounds(&item.span()).0;
+    let start = item.span_bounds().0;
     let mut highlights: Vec<_> = highlights
         .iter()
-        .map(&span_bounds)
         .map(|(l, h)| (l - start, h - start))
         .collect();
     highlights.sort();
@@ -126,7 +117,10 @@ pub fn format_location_line(
     format!("{}:{}:{}", file, item.span().start().line, impl_msg)
 }
 
-pub fn format_sig_with_highlights(item: &syn::Signature, highlights: &[Span]) -> Vec<FmtToken> {
+pub fn format_sig_with_highlights(
+    item: &syn::Signature,
+    highlights: &[(usize, usize)],
+) -> Vec<FmtToken> {
     // TODO: probably want to unindent the result?
     let tokens = add_highlights(item, highlights);
     tokens

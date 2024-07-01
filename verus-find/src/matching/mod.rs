@@ -7,7 +7,6 @@ mod test;
 use expr::*;
 use other::*;
 
-use proc_macro2::Span;
 use syn::spanned::Spanned;
 use syn_verus as syn;
 
@@ -87,7 +86,7 @@ pub(crate) use or;
 //        })
 //}
 
-type Highlights = Vec<Span>;
+type Highlights = Vec<(usize, usize)>;
 
 pub struct Query {
     reqens: Option<syn::Expr>,
@@ -142,12 +141,12 @@ pub enum Match {
         item: syn::ImplItemMethod,
         file: String,
         impl_type: syn::Type,
-        highlights: Vec<Span>,
+        highlights: Vec<(usize, usize)>,
     },
     Item {
         item: syn::ItemFn,
         file: String,
-        highlights: Vec<Span>,
+        highlights: Vec<(usize, usize)>,
     },
 }
 
@@ -173,7 +172,7 @@ impl Match {
         }
     }
 
-    pub fn highlights(&self) -> &Vec<Span> {
+    pub fn highlights(&self) -> &Vec<(usize, usize)> {
         match self {
             Match::ImplItem { highlights, .. } => highlights,
             Match::Item { highlights, .. } => highlights,
@@ -209,11 +208,21 @@ impl Match {
         self.file().hash(&mut s);
         self.sig().hash(&mut s);
         self.impl_type().hash(&mut s);
-        self.highlights()
-            .iter()
-            .map(fmt::span_bounds)
-            .collect::<Vec<_>>()
-            .hash(&mut s);
+        self.highlights().iter().collect::<Vec<_>>().hash(&mut s);
         s.finish()
+    }
+}
+
+pub trait SpanBounds {
+    fn span_bounds(&self) -> (usize, usize);
+}
+
+impl<S: Spanned> SpanBounds for S {
+    // Extracts start and end of the span. I'm sure there's a proper way of doing this but alas, I
+    // don't know what it is.
+    fn span_bounds(&self) -> (usize, usize) {
+        let x = format!("{:?}", self.span());
+        let x: Vec<_> = x.split(|c| c == '(' || c == '.' || c == ')').collect();
+        (x[1].parse().unwrap(), x[3].parse().unwrap())
     }
 }
