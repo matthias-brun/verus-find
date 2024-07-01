@@ -3,7 +3,16 @@ name = "verus-find"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "verus_find_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "verus-find"
+path = "src/main.rs"
+
 [dependencies]
 syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", features = ["full", "extra-traits"] }
 proc-macro2 = { version = "*", features = ["span-locations"] }
 clap = { version = "*", features = [ "derive", "env" ] }
+itertools = "*"

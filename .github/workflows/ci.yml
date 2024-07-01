@@ -5,6 +5,10 @@ on: [push, pull_request, workflow_dispatch]
 env:
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: verus-find
+
 jobs:
   build_and_test:
     name: Build and Test
