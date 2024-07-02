@@ -117,6 +117,9 @@ pub fn format_location_line(
     format!("{}:{}:{}", file, item.span().start().line, impl_msg)
 }
 
+/// This function highlights the source span of the given signature with the given highlights.
+/// The result is a vector of `FmtToken`s to separate the text from the highlighting. (Necessary to
+/// prevent injection when generating HTML output.)
 pub fn format_sig_with_highlights(
     item: &syn::Signature,
     highlights: &[(usize, usize)],

@@ -50,43 +50,56 @@ pub fn MatchesView(matches: ReadSignal<Vec<matching::Match>>) -> impl IntoView {
 }
 
 #[component]
-pub fn VerusFindComponent(files: &'static [(&'static str, &'static str)]) -> impl IntoView {
+pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
     let (expr, set_expr) = create_signal("".to_string());
+    let (sig, set_sig) = create_signal("".to_string());
     let (matches, set_matches) = create_signal(vec![]);
-
-    let files = files.iter().map(|(path, file)|
-        (path, syn::parse_file(file)
-        .map_err(|e| {
-            dbg!(&e.span().start(), &e.span().end());
-            format!("failed to parse file: {}", e)
-        }).unwrap())
-    ).collect::<Vec<_>>();
 
     view! {
         <div>
             <span>Search expression:</span>
             <input type="text"
                 on:input=move |ev| {
-                    log!("{}", &event_target_value(&ev));
-                    if event_target_value(&ev).is_empty() {
-                        set_matches.set(vec![]);
-                    } else {
-                        let parsed_expr: syn::Expr = syn::parse_str(&event_target_value(&ev))
-                                .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr.get()));
-                        let query = matching::Query::new(Some(parsed_expr), None, None, None, None);
-                        let matches = files.iter().flat_map(|(path, file)|
-                            matching::other::get_matches_items(file.items.iter(), &query, path)
-                        ).collect();
-                        log!("{:?}", matches);
-                        set_matches.set(matches);
-                    }
+                    log!("Expr: {}", &event_target_value(&ev));
+                    set_expr.set(event_target_value(&ev));
                 }
             />
+            <span>Search signature:</span>
+            <input type="text"
+                on:input=move |ev| {
+                    log!("Sig: {}", &event_target_value(&ev));
+                    set_sig.set(event_target_value(&ev));
+                }
+            />
+            <button on:click=move |_| set_matches.set(get_matches(&files, expr.get(), sig.get()))>"Search"</button>
             <div>"Results: "<br />
                 <MatchesView
                 matches=matches
                 />
             </div>
         </div>
+    }
+}
+
+fn get_matches(files: &[(String, syn::File)], expr: String, sig: String) -> Vec<matching::Match> {
+    if expr.is_empty() && sig.is_empty() {
+        vec![]
+    } else {
+        let parsed_expr: Option<syn::Expr> = syn::parse_str(&expr).ok();
+        let parsed_sig: Option<syn::Signature> = syn::parse_str(&sig).ok();
+        if parsed_expr.is_none() && parsed_sig.is_none() {
+            log!("Expr and sig are none");
+            vec![]
+        } else {
+            log!("Searching");
+            let query = matching::Query::new(parsed_expr, None, None, None, parsed_sig);
+            let matches = files
+                .iter()
+                .flat_map(|(path, file)| {
+                    matching::other::get_matches_items(file.items.iter(), &query, path)
+                })
+                .collect();
+            matches
+        }
     }
 }
