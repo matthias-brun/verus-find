@@ -1,5 +1,9 @@
 use super::*;
 
+fn is_vis_public(v: &syn::Visibility) -> bool {
+    matches!(v, syn::Visibility::Public(_))
+}
+
 /// Checks if two iterators match, where wildcards in the first iterator, identified with the
 /// `is_match` predicate, can match any number of arguments in the second iterator, while other
 /// arguments in the first iterator have to match exactly.
@@ -167,24 +171,11 @@ fn contains_match_stmt(stmt: &syn::Stmt, expr: &syn::Expr) -> Option<Highlights>
     }
 }
 
-fn get_matches_impl_items<'a, I>(
-    items: I,
-    query: &Query,
-    file: &str,
-    impl_type: &syn::Type,
-) -> Vec<Match>
-where
-    I: Iterator<Item = &'a syn::ImplItem>,
-{
-    items
-        .filter_map(|item| contains_match_impl_item(item, query, file, impl_type))
-        .collect()
-}
-
 fn contains_match_impl_item(
     item: &syn::ImplItem,
     query: &Query,
     file: &str,
+    public: bool,
     impl_type: &syn::Type,
 ) -> Option<Match> {
     match item {
@@ -195,6 +186,7 @@ fn contains_match_impl_item(
                     file: file.to_string(),
                     impl_type: impl_type.clone(),
                     highlights,
+                    public: public && is_vis_public(&m.vis),
                 }
             })
         }
@@ -202,16 +194,7 @@ fn contains_match_impl_item(
     }
 }
 
-pub fn get_matches_items<'a, I>(items: I, query: &Query, file: &str) -> Vec<Match>
-where
-    I: Iterator<Item = &'a syn::Item>,
-{
-    items
-        .flat_map(|item| get_matches_item(item, query, file))
-        .collect()
-}
-
-fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
+pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str, public: bool) -> Vec<Match> {
     match item {
         syn::Item::Fn(i) => {
             contains_match_signature(&i.sig, query, None).map_or(vec![], |highlights| {
@@ -219,10 +202,15 @@ fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
                     item: i.clone(),
                     file: file.to_string(),
                     highlights,
+                    public: public && is_vis_public(&i.vis),
                 }]
             })
         }
-        syn::Item::Impl(i) => get_matches_impl_items(i.items.iter(), query, file, &i.self_ty),
+        syn::Item::Impl(i) => i
+            .items
+            .iter()
+            .filter_map(|item| contains_match_impl_item(item, query, file, public, &i.self_ty))
+            .collect(),
         syn::Item::Macro(m) => {
             let outer_last_segment = m.mac.path.segments.last().map(|s| s.ident.to_string());
             if outer_last_segment == Some(String::from("verus")) {
@@ -232,17 +220,22 @@ fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
                         format!("failed to parse file macro contents: {} {:?}", e, e.span())
                     })
                     .expect("unexpected verus! macro content");
-                get_matches_items(macro_content.items.iter(), query, file)
+                macro_content
+                    .items
+                    .iter()
+                    .flat_map(|item| get_matches_item(item, query, file, public))
+                    .collect()
             } else {
                 vec![]
             }
         }
         syn::Item::Mod(syn::ItemMod {
             content: Some((_, items)),
+            vis,
             ..
         }) => items
             .iter()
-            .flat_map(|item| get_matches_item(item, query, file))
+            .flat_map(|item| get_matches_item(item, query, file, public && is_vis_public(vis)))
             .collect(),
         // syn::Item::Trait(ItemTrait) => {},
         _ => vec![],

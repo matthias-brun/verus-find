@@ -94,6 +94,7 @@ pub struct Query {
     ens: Option<syn::Expr>,
     _body: Option<syn::Expr>,
     sig: Option<syn::Signature>,
+    include_non_pub: bool,
 }
 
 impl Query {
@@ -103,6 +104,7 @@ impl Query {
         ens: Option<syn::Expr>,
         body: Option<syn::Expr>,
         sig: Option<syn::Signature>,
+        include_non_pub: bool,
     ) -> Self {
         Query {
             reqens,
@@ -110,6 +112,7 @@ impl Query {
             ens,
             _body: body,
             sig,
+            include_non_pub,
         }
     }
 
@@ -142,11 +145,13 @@ pub enum Match {
         file: String,
         impl_type: syn::Type,
         highlights: Vec<(usize, usize)>,
+        public: bool,
     },
     Item {
         item: syn::ItemFn,
         file: String,
         highlights: Vec<(usize, usize)>,
+        public: bool,
     },
 }
 
@@ -176,6 +181,13 @@ impl Match {
         match self {
             Match::ImplItem { highlights, .. } => highlights,
             Match::Item { highlights, .. } => highlights,
+        }
+    }
+
+    pub fn public(&self) -> bool {
+        match self {
+            Match::ImplItem { public, .. } => *public,
+            Match::Item { public, .. } => *public,
         }
     }
 
@@ -225,4 +237,22 @@ impl<S: Spanned> SpanBounds for S {
         let x: Vec<_> = x.split(|c| c == '(' || c == '.' || c == ')').collect();
         (x[1].parse().unwrap(), x[3].parse().unwrap())
     }
+}
+
+pub fn get_matches_file(syn_file: &syn::File, query: &Query, file: &str) -> Vec<Match> {
+    syn_file
+        .items
+        .iter()
+        .flat_map(|item| {
+            other::get_matches_item(item, query, file, true)
+                .into_iter()
+                .flat_map(|m| {
+                    if query.include_non_pub || m.public() {
+                        Some(m)
+                    } else {
+                        None
+                    }
+                })
+        })
+        .collect()
 }

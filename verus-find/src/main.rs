@@ -27,6 +27,12 @@ struct ArgGroupQuery {
     ens: Option<String>,
     #[arg(short, long, value_name = "sig", help = "Find signature pattern")]
     sig: Option<String>,
+    #[arg(
+        long,
+        action,
+        help = "Include matching non-public functions in the results"
+    )]
+    include_non_pub: bool,
     //#[arg(short, long, value_name = "expr", help = "Expression to find in function body")]
     //body: Option<String>,
 }
@@ -74,7 +80,7 @@ fn main() {
         syn::parse_str(&expr)
             .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", expr))
     });
-    let query = matching::Query::new(reqens, req, ens, body, sig);
+    let query = matching::Query::new(reqens, req, ens, body, sig, args.ag_query.include_non_pub);
 
     let count = if let Some(file) = args.ag_file.file {
         process_file(std::path::Path::new(&file), &query)
@@ -102,8 +108,7 @@ fn process_file(input_path: &std::path::Path, query: &matching::Query) -> usize 
             format!("failed to parse file {}: {}", input_path.display(), e)
         })
         .unwrap();
-    let matches =
-        matching::other::get_matches_items(file.items.iter(), query, input_path.to_str().unwrap());
+    let matches = matching::get_matches_file(&file, query, input_path.to_str().unwrap());
     let count = matches.len();
     matches.into_iter().for_each(|m| m.print());
     count
