@@ -87,7 +87,7 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
                 <button>"Search"</button>
             </form>
             <hr />
-            <div>"Results: "<br />
+            <div>"Results: "{move || { if err_expr.get().is_empty() { format!("{} matches found", matches.get().len()) } else { "".to_string() } }}<br />
                 <MatchesView
                 matches=matches
                 />
