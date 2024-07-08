@@ -51,7 +51,6 @@ pub fn MatchesView(matches: ReadSignal<Vec<matching::Match>>) -> impl IntoView {
 pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
     let (expr, set_expr) = create_signal("".to_string());
     let (sig, set_sig) = create_signal("".to_string());
-    let (include_non_pub, set_include_non_pub) = create_signal(false);
     let (matches, set_matches) = create_signal(vec![]);
     let (err_expr, set_err_expr) = create_signal("".to_string());
     let (err_sig, set_err_sig) = create_signal("".to_string());
@@ -64,7 +63,6 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
             sig.get(),
             set_err_expr,
             set_err_sig,
-            include_non_pub.get()
         ));
     };
     view! {
@@ -77,7 +75,7 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
                         set_expr.set(event_target_value(&ev));
                         set_err_expr.set("".to_string());
                     }
-                /><br />
+                /><span class="err_msg">{move || err_expr.get()}</span><br />
                 <span>Search signature:</span>
                 <input type="text" class={move || if err_sig.get().is_empty() { "" } else { "err" }}
                     on:input=move |ev| {
@@ -85,26 +83,11 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
                         set_sig.set(event_target_value(&ev));
                         set_err_sig.set("".to_string());
                     }
-                /><br />
-                <label>
-                    <input
-                        type="checkbox"
-                        on:change=move |ev| {
-                            set_include_non_pub.set(event_target_checked(&ev));
-                        }
-                        />
-                    Include non-public functions
-                </label><br />
+                /><span class="err_msg">{move || err_sig.get()}</span><br />
                 <button>"Search"</button>
             </form>
             <hr />
-            <div>"Result: "{
-                move || { if err_expr.get().is_empty() && err_sig.get().is_empty() {
-                    view! { <span><b>{format!("{} matches found", matches.get().len())}</b></span> }
-                } else {
-                    view! { <span class="err_msg">{format!("{} {}", err_expr.get(), err_sig.get())}</span> }
-                } }
-                }<br />
+            <div>"Results: "{move || { if err_expr.get().is_empty() { format!("{} matches found", matches.get().len()) } else { "".to_string() } }}<br />
                 <MatchesView
                 matches=matches
                 />
@@ -119,7 +102,6 @@ fn get_matches(
     sig: String,
     set_err_expr: WriteSignal<String>,
     set_err_sig: WriteSignal<String>,
-    include_non_pub: bool,
 ) -> Vec<matching::Match> {
     if expr.is_empty() && sig.is_empty() {
         vec![]
@@ -127,21 +109,21 @@ fn get_matches(
         let parsed_expr: Option<syn::Expr> = syn::parse_str(&expr).ok();
         let parsed_sig: Option<syn::Signature> = syn::parse_str(&sig).ok();
         if !expr.is_empty() && parsed_expr.is_none() {
-            set_err_expr.set("Invalid expression.".to_string());
+            set_err_expr.set("Couldn't parse expression".to_string());
         }
         if !sig.is_empty() && parsed_sig.is_none() {
-            set_err_sig.set("Invalid signature.".to_string());
+            set_err_sig.set("Couldn't parse signature".to_string());
         }
         if parsed_expr.is_none() && parsed_sig.is_none() {
             log!("Expr and sig are none");
             vec![]
         } else {
             log!("Searching");
-            let query = matching::Query::new(parsed_expr, None, None, None, parsed_sig, include_non_pub);
+            let query = matching::Query::new(parsed_expr, None, None, None, parsed_sig);
             let matches = files
                 .iter()
                 .flat_map(|(path, file)| {
-                    matching::get_matches_file(file, &query, path)
+                    matching::other::get_matches_items(file.items.iter(), &query, path)
                 })
                 .collect();
             matches
