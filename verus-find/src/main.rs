@@ -102,8 +102,7 @@ fn process_file(input_path: &std::path::Path, query: &matching::Query) -> usize 
             format!("failed to parse file {}: {}", input_path.display(), e)
         })
         .unwrap();
-    let matches =
-        matching::other::get_matches_items(file.items.iter(), query, input_path.to_str().unwrap());
+    let matches = matching::get_matches_file(&file, query, input_path.to_str().unwrap());
     let count = matches.len();
     matches.into_iter().for_each(|m| m.print());
     count

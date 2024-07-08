@@ -226,3 +226,11 @@ impl<S: Spanned> SpanBounds for S {
         (x[1].parse().unwrap(), x[3].parse().unwrap())
     }
 }
+
+pub fn get_matches_file(syn_file: &syn::File, query: &Query, file: &str) -> Vec<Match> {
+    syn_file
+        .items
+        .iter()
+        .flat_map(|item| other::get_matches_item(item, query, file))
+        .collect()
+}

@@ -167,20 +167,6 @@ fn contains_match_stmt(stmt: &syn::Stmt, expr: &syn::Expr) -> Option<Highlights>
     }
 }
 
-fn get_matches_impl_items<'a, I>(
-    items: I,
-    query: &Query,
-    file: &str,
-    impl_type: &syn::Type,
-) -> Vec<Match>
-where
-    I: Iterator<Item = &'a syn::ImplItem>,
-{
-    items
-        .filter_map(|item| contains_match_impl_item(item, query, file, impl_type))
-        .collect()
-}
-
 fn contains_match_impl_item(
     item: &syn::ImplItem,
     query: &Query,
@@ -202,16 +188,7 @@ fn contains_match_impl_item(
     }
 }
 
-pub fn get_matches_items<'a, I>(items: I, query: &Query, file: &str) -> Vec<Match>
-where
-    I: Iterator<Item = &'a syn::Item>,
-{
-    items
-        .flat_map(|item| get_matches_item(item, query, file))
-        .collect()
-}
-
-fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
+pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
     match item {
         syn::Item::Fn(i) => {
             contains_match_signature(&i.sig, query, None).map_or(vec![], |highlights| {
@@ -222,7 +199,11 @@ fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
                 }]
             })
         }
-        syn::Item::Impl(i) => get_matches_impl_items(i.items.iter(), query, file, &i.self_ty),
+        syn::Item::Impl(i) => i
+            .items
+            .iter()
+            .filter_map(|item| contains_match_impl_item(item, query, file, &i.self_ty))
+            .collect(),
         syn::Item::Macro(m) => {
             let outer_last_segment = m.mac.path.segments.last().map(|s| s.ident.to_string());
             if outer_last_segment == Some(String::from("verus")) {
@@ -232,7 +213,11 @@ fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
                         format!("failed to parse file macro contents: {} {:?}", e, e.span())
                     })
                     .expect("unexpected verus! macro content");
-                get_matches_items(macro_content.items.iter(), query, file)
+                macro_content
+                    .items
+                    .iter()
+                    .flat_map(|item| get_matches_item(item, query, file))
+                    .collect()
             } else {
                 vec![]
             }

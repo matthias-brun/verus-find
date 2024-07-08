@@ -1,5 +1,5 @@
 use leptos::*;
-use leptos_dom::log;
+//use leptos_dom::log;
 use syn::spanned::Spanned;
 use syn_verus as syn;
 use verus_find_lib::matching;
@@ -71,23 +71,29 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
                 <span>Search expression:</span>
                 <input type="text" class={move || if err_expr.get().is_empty() { "" } else { "err" }}
                     on:input=move |ev| {
-                        log!("Expr: {}", &event_target_value(&ev));
+                        //log!("Expr: {}", &event_target_value(&ev));
                         set_expr.set(event_target_value(&ev));
                         set_err_expr.set("".to_string());
                     }
-                /><span class="err_msg">{move || err_expr.get()}</span><br />
+                /><br />
                 <span>Search signature:</span>
                 <input type="text" class={move || if err_sig.get().is_empty() { "" } else { "err" }}
                     on:input=move |ev| {
-                        log!("Sig: {}", &event_target_value(&ev));
+                        //log!("Sig: {}", &event_target_value(&ev));
                         set_sig.set(event_target_value(&ev));
                         set_err_sig.set("".to_string());
                     }
-                /><span class="err_msg">{move || err_sig.get()}</span><br />
+                /><br />
                 <button>"Search"</button>
             </form>
             <hr />
-            <div>"Results: "{move || { if err_expr.get().is_empty() { format!("{} matches found", matches.get().len()) } else { "".to_string() } }}<br />
+            <div>"Result: "{
+                move || { if err_expr.get().is_empty() && err_sig.get().is_empty() {
+                    view! { <span><b>{format!("{} matches found", matches.get().len())}</b></span> }
+                } else {
+                    view! { <span class="err_msg">{format!("{} {}", err_expr.get(), err_sig.get())}</span> }
+                } }
+                }<br />
                 <MatchesView
                 matches=matches
                 />
@@ -109,21 +115,21 @@ fn get_matches(
         let parsed_expr: Option<syn::Expr> = syn::parse_str(&expr).ok();
         let parsed_sig: Option<syn::Signature> = syn::parse_str(&sig).ok();
         if !expr.is_empty() && parsed_expr.is_none() {
-            set_err_expr.set("Couldn't parse expression".to_string());
+            set_err_expr.set("Invalid expression.".to_string());
         }
         if !sig.is_empty() && parsed_sig.is_none() {
-            set_err_sig.set("Couldn't parse signature".to_string());
+            set_err_sig.set("Invalid signature.".to_string());
         }
         if parsed_expr.is_none() && parsed_sig.is_none() {
-            log!("Expr and sig are none");
+            //log!("Expr and sig are none");
             vec![]
         } else {
-            log!("Searching");
+            //log!("Searching");
             let query = matching::Query::new(parsed_expr, None, None, None, parsed_sig);
             let matches = files
                 .iter()
                 .flat_map(|(path, file)| {
-                    matching::other::get_matches_items(file.items.iter(), &query, path)
+                    matching::get_matches_file(file, &query, path)
                 })
                 .collect();
             matches
