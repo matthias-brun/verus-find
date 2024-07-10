@@ -1,5 +1,5 @@
 use leptos::*;
-//use leptos_dom::log;
+use leptos_dom::log;
 use syn::spanned::Spanned;
 use syn_verus as syn;
 use verus_find_lib::matching;
@@ -49,21 +49,15 @@ pub fn MatchesView(matches: ReadSignal<Vec<matching::Match>>) -> impl IntoView {
 
 #[component]
 pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
-    let (expr, set_expr) = create_signal("".to_string());
-    let (sig, set_sig) = create_signal("".to_string());
+    let (query, set_query) = create_signal(matching::Query::empty());
     let (matches, set_matches) = create_signal(vec![]);
     let (err_expr, set_err_expr) = create_signal("".to_string());
     let (err_sig, set_err_sig) = create_signal("".to_string());
 
     let form_submit = move |ev: leptos::ev::SubmitEvent| {
+        //log!("Form submitted");
         ev.prevent_default();
-        set_matches.set(get_matches(
-            &files,
-            expr.get(),
-            sig.get(),
-            set_err_expr,
-            set_err_sig,
-        ));
+        set_matches.set(get_matches(&files, &query.get()));
     };
     view! {
         <div>
@@ -71,17 +65,39 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
                 <span>Search expression:</span>
                 <input type="text" class={move || if err_expr.get().is_empty() { "" } else { "err" }}
                     on:input=move |ev| {
-                        //log!("Expr: {}", &event_target_value(&ev));
-                        set_expr.set(event_target_value(&ev));
-                        set_err_expr.set("".to_string());
+                        let s = event_target_value(&ev);
+                        if s.is_empty() {
+                            set_query.set(query.get().set_reqens(None));
+                            set_err_expr.set("".to_string());
+                        } else {
+                            match syn::parse_str(&event_target_value(&ev)) {
+                                Ok(e) => {
+                                    set_query.set(query.get().set_reqens(Some(e)));
+                                    set_err_expr.set("".to_string());
+                                },
+                                Err(_) => set_err_expr.set("Invalid expr".to_string()),
+                            }
+                        }
+                        //log!("{:?}", query.get());
                     }
                 /><br />
                 <span>Search signature:</span>
                 <input type="text" class={move || if err_sig.get().is_empty() { "" } else { "err" }}
                     on:input=move |ev| {
-                        //log!("Sig: {}", &event_target_value(&ev));
-                        set_sig.set(event_target_value(&ev));
-                        set_err_sig.set("".to_string());
+                        let s = event_target_value(&ev);
+                        if s.is_empty() {
+                            set_query.set(query.get().set_sig(None));
+                            set_err_sig.set("".to_string());
+                        } else {
+                            match syn::parse_str(&event_target_value(&ev)) {
+                                Ok(e) => {
+                                    set_query.set(query.get().set_sig(Some(e)));
+                                    set_err_sig.set("".to_string());
+                                },
+                                Err(_) => set_err_sig.set("Invalid signature".to_string()),
+                            }
+                        }
+                        //log!("{:?}", query.get());
                     }
                 /><br />
                 <button>"Search"</button>
@@ -102,37 +118,13 @@ pub fn VerusFindComponent(files: Vec<(String, syn::File)>) -> impl IntoView {
     }
 }
 
-fn get_matches(
-    files: &[(String, syn::File)],
-    expr: String,
-    sig: String,
-    set_err_expr: WriteSignal<String>,
-    set_err_sig: WriteSignal<String>,
-) -> Vec<matching::Match> {
-    if expr.is_empty() && sig.is_empty() {
-        vec![]
-    } else {
-        let parsed_expr: Option<syn::Expr> = syn::parse_str(&expr).ok();
-        let parsed_sig: Option<syn::Signature> = syn::parse_str(&sig).ok();
-        if !expr.is_empty() && parsed_expr.is_none() {
-            set_err_expr.set("Invalid expression.".to_string());
-        }
-        if !sig.is_empty() && parsed_sig.is_none() {
-            set_err_sig.set("Invalid signature.".to_string());
-        }
-        if parsed_expr.is_none() && parsed_sig.is_none() {
-            //log!("Expr and sig are none");
-            vec![]
-        } else {
-            //log!("Searching");
-            let query = matching::Query::new(parsed_expr, None, None, None, parsed_sig);
-            let matches = files
-                .iter()
-                .flat_map(|(path, file)| {
-                    matching::get_matches_file(file, &query, path)
-                })
-                .collect();
-            matches
-        }
-    }
+fn get_matches(files: &[(String, syn::File)], query: &matching::Query) -> Vec<matching::Match> {
+    log!("Searching for {:?}", query);
+    let matches = files
+        .iter()
+        .flat_map(|(path, file)| {
+            matching::get_matches_file(file, query, path)
+        })
+    .collect();
+    matches
 }

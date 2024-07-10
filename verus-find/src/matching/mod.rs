@@ -88,6 +88,7 @@ pub(crate) use or;
 
 type Highlights = Vec<(usize, usize)>;
 
+#[derive(Debug, Clone)]
 pub struct Query {
     reqens: Option<syn::Expr>,
     req: Option<syn::Expr>,
@@ -97,6 +98,18 @@ pub struct Query {
 }
 
 impl Query {
+    pub fn empty() -> Self {
+        Query::new(None, None, None, None, None)
+    }
+
+    pub fn set_reqens(self, reqens: Option<syn::Expr>) -> Query {
+        Query { reqens, ..self }
+    }
+
+    pub fn set_sig(self, sig: Option<syn::Signature>) -> Query {
+        Query { sig, ..self }
+    }
+
     pub fn new(
         reqens: Option<syn::Expr>,
         req: Option<syn::Expr>,
