@@ -90,10 +90,15 @@ type Highlights = Vec<(usize, usize)>;
 
 #[derive(Debug, Clone)]
 pub struct Query {
+    /// Pattern to find in requires or ensures
     reqens: Option<syn::Expr>,
+    /// Pattern to find in requires
     req: Option<syn::Expr>,
+    /// Pattern to find in ensures
     ens: Option<syn::Expr>,
+    /// TODO: Pattern to find in function body
     _body: Option<syn::Expr>,
+    /// Pattern to match signature against
     sig: Option<syn::Signature>,
 }
 
