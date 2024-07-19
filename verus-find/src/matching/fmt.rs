@@ -63,7 +63,10 @@ fn add_highlights<S: Spanned>(item: S, highlights: &[(usize, usize)]) -> Vec<Fmt
         .iter()
         .map(|(l, h)| (l - start, h - start))
         .collect();
-    highlights.sort();
+    // Sort by first element first; if equal, greater second element comes first.
+    // Matches the nesting structure, e.g. we highlight (1, 10) and inside that highlight we have a
+    // nested highlight (1,5). The outer highlight should come first.
+    highlights.sort_by(|(l1, h1), (l2, h2)| l1.cmp(l2).then(h2.cmp(h1)));
 
     let mut tokens = vec![];
     let mut ends = vec![];
