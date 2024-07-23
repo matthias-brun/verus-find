@@ -1,42 +1,12 @@
 <!DOCTYPE html>
 <html>
 	<head>
+    <link rel="stylesheet" href="style.css">
     <style>
       body {
         margin: auto;
         max-width: 1080px;
         font-family: mono;
-
-        span {
-            white-space:pre;
-        }
-        span.hl_match1 {
-          color: orange;
-          font-weight: bold;
-        }
-        span.hl_match2 {
-          color: red;
-          font-weight: bold;
-        }
-        span.hl_match0 {
-          color: blue;
-          font-weight: bold;
-        }
-        span.err_msg {
-          color: red;
-          font-weight: bold;
-        }
-        input[type="text"] {
-          border: none;
-          outline: none;
-          border-bottom: 1px solid #ccc;
-        }
-        input[type="text"].err {
-          border-bottom: 1px solid red;
-        }
-        span.bold {
-          font-weight: bold;
-        }
       }
     </style>
 	</head>
@@ -52,7 +22,7 @@
       The results are the functions whose pre-/postcondition <b>contains</b> an expression that matches the queried expression.
       </p>
       <p>
-      For example, a search for <span class="bold">_.difference(_).len()</span> finds the following lemma:
+      For example, a search for <b>_.difference(_).len()</b> finds the following lemma:
       </p>
       <hr />
       <div><div style="color:green; font-weight: bold;">vstd/set_lib.rs:</div><span class="">proof fn lemma_len_difference&lt;A&gt;(s1: Set&lt;A&gt;, s2: Set&lt;A&gt;)</span><br><span class="">    requires</span><br><span class="">        s1.finite(),</span><br><span class="">    ensures</span><br><span class="">        </span><span class="hl_match1">s1.difference(s2).len()</span><span class=""> &lt;= s1.len(),</span></div>
@@ -71,7 +41,7 @@
             <b>_ + _</b> matches <span class="hl_match1">a + b</span>, <span class="hl_match1">a + s.len()</span>
           </li>
           <li>
-            <b>a + a</b> does not match <span class="bold">1 + 1</span>
+            <b>a + a</b> does not match <b>1 + 1</b>
           </li>
         </ul>
         <li>
@@ -82,7 +52,7 @@
             <b>_ + _</b> matches <span class="hl_match1">x + y</span>
           </li>
           <li>
-            <b>_ + _</b> does not match <span class="bold">(x + y) * z</span>
+            <b>_ + _</b> does not match <b>(x + y) * z</b>
           </li>
         </ul>
         <li>
@@ -93,7 +63,7 @@
             <b>*(_ - _) % _</b> matches <span class="hl_match1">(x * </span><span class="hl_match2">(1 - d)</span><span class="hl_match1">) % d</span>
           </li>
           <li>
-            &nbsp;<b>(_ - _) % _</b> does not match <span class="bold">(x * (1 - d)) % d</span>
+            &nbsp;<b>(_ - _) % _</b> does not match <b>(x * (1 - d)) % d</b>
           </li>
         </ul>
         <li>
@@ -178,7 +148,7 @@
       To search by function signature, type a valid Verus function signature.
       </p>
       <p>
-      For example, a search for <span class="bold">fn any(_: &amp;mut Vec&lt;_&gt;, _: _)</span> finds the following function:
+      For example, a search for <b>fn any(_: &amp;mut Vec&lt;_&gt;, _: _)</b> finds the following function:
       </p>
       <hr />
       <div><div style="color:green; font-weight: bold;">vstd/pervasive.rs: (in `impl alloc::vec::Vec&lt;T&gt;`)</div><span class="">fn set(</span><span class="hl_match1">&amp;mut self</span><span class="">, i: usize, value: T)</span><br><span class="">        requires</span><br><span class="">            i &lt; old(self).len(),</span><br><span class="">        ensures</span><br><span class="">            self@ == old(self)@.update(i as int, value),</span></div>
@@ -186,7 +156,7 @@
       <h4>Signature matching rules</h4>
       <ul>
         <li>
-          Function names match if the query is a substring. The function name <span class="bold">any</span> is treated as a wildcard.
+          Function names match if the query is a substring. The function name <b>any</b> is treated as a wildcard.
         </li>
         <ul>
           <li>
@@ -200,7 +170,7 @@
           </li>
         </ul>
         <li>
-          Arguments are matched the same as arguments to function or method calls, as explained above. <span class="bold">_: _</span> is treated as a wildcard, while e.g. <span class="bold">_: u64</span> matches any u64 argument.
+          Arguments are matched the same as arguments to function or method calls, as explained above. <b>_: _</b> is treated as a wildcard, while e.g. <b>_: u64</b> matches any u64 argument.
         </li>
         <ul>
           <li>
@@ -242,6 +212,6 @@
         </ul>
       </ul>
       <h2>Can I search functions in my own project?</h2>
-      The web instance only searches in Verus' standard library vstd. The CLI version can also search your own project. Check out the Github repository for instructions.
+      The web instance only searches in Verus' standard library vstd. The CLI version can also search your own project. Check out <a href="https://github.com/matthias-brun/verus-find">the Github repository</a> for instructions.
   </body>
 </html>

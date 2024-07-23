@@ -1,0 +1,30 @@
+body {
+  font-family: mono;
+  span {
+    white-space: pre;
+  }
+  span.hl_match1 {
+    color: orange;
+    font-weight: bold;
+  }
+  span.hl_match2 {
+    color: red;
+    font-weight: bold;
+  }
+  span.hl_match0 {
+    color: blue;
+    font-weight: bold;
+  }
+  span.err_msg {
+    color: red;
+    font-weight: bold;
+  }
+  input[type="text"] {
+    border: none;
+    outline: none;
+    border-bottom: 1px solid #ccc;
+  }
+  input[type="text"].err {
+    border-bottom: 1px solid red;
+  }
+}
