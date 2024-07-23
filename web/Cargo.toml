@@ -19,3 +19,6 @@ syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", featur
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3.0"
 web-sys = "0.3"
+
+[build-dependencies]
+walkdir = "2.5"
