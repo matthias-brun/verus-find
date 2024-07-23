@@ -709,5 +709,7 @@ proof fn foo()
         .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", item_source));
     let query = Query::new(Some(query_ast), None, None, None, None);
     let matches = get_matches_item(&item_ast, &query, "file");
-    matches.iter().for_each(|m| { m.as_fmt_tokens(); }); // Shouldn't panic
+    matches.iter().for_each(|m| {
+        m.as_fmt_tokens();
+    }); // Shouldn't panic
 }
