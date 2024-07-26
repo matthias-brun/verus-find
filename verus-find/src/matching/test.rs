@@ -694,3 +694,22 @@ fn test_bug_repros() {
     let expr = "bar(seq![x].add(s))";
     check_expr_matches(query, expr, false);
 }
+
+#[test]
+fn test_bug_repro_fmt_panic() {
+    let item_source = "
+proof fn foo()
+    ensures (x + n) % n
+{}
+    ";
+    let query_source = "*(_ + _) % _";
+    let query_ast: syn::Expr = syn::parse_str(query_source)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", query_source));
+    let item_ast: syn::Item = syn::parse_str(item_source)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", item_source));
+    let query = Query::new(Some(query_ast), None, None, None, None);
+    let matches = get_matches_item(&item_ast, &query, "file");
+    matches.iter().for_each(|m| {
+        m.as_fmt_tokens();
+    }); // Shouldn't panic
+}

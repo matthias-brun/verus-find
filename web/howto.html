@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css">
+    <style>
+      body {
+        margin: auto;
+        margin-bottom: 100px;
+        max-width: 1080px;
+        font-family: mono;
+      }
+    </style>
+    <title>How to use verus-find</title>
+  </head>
+  <body>
+    <h1>How to use verus-find</h1>
+      <p>
+      <b>Verus-find</b> can find functions and lemmas in Verus files that match some user-provided pattern.
+      Verus-find supports searching for an expression pattern in the pre- and or postcondition and searching for functions that match a specific signature pattern.
+      </p>
+      <h2>Searching in pre- and postconditions</h2>
+      <p>
+      To search in pre- or postconditions, type a Verus expression.<br />
+      The results are the functions whose pre-/postcondition <b>contains</b> an expression that matches the queried expression.
+      </p>
+      <p>
+      For example, a search for <b>_.difference(_).len()</b> finds the following lemma:
+      </p>
+      <hr />
+      <div><div style="color:green; font-weight: bold;">vstd/set_lib.rs:</div><span class="">proof fn lemma_len_difference&lt;A&gt;(s1: Set&lt;A&gt;, s2: Set&lt;A&gt;)</span><br><span class="">    requires</span><br><span class="">        s1.finite(),</span><br><span class="">    ensures</span><br><span class="">        </span><span class="hl_match1">s1.difference(s2).len()</span><span class=""> &lt;= s1.len(),</span></div>
+      <hr />
+      <h3>Expression matching</h3>
+      <h4>General rules</h4>
+      <ul>
+        <li>
+          Identifiers are matched by string comparison. Wildcards are supported and often more useful.
+        </li>
+        <ul>
+          <li>
+            <b>a + b</b> matches <span class="hl_match1">a + b</span>
+          </li>
+          <li>
+            <b>_ + _</b> matches <span class="hl_match1">a + b</span>, <span class="hl_match1">a + s.len()</span>
+          </li>
+          <li>
+            <b>a + a</b> does not match <b>1 + 1</b>
+          </li>
+        </ul>
+        <li>
+          Expressions are matched on the outer-most syntactic constructor
+        </li>
+        <ul>
+          <li>
+            <b>_ + _</b> matches <span class="hl_match1">x + y</span>
+          </li>
+          <li>
+            <b>_ + _</b> does not match <b>(x + y) * z</b>
+          </li>
+        </ul>
+        <li>
+          Nested matching is supported with a prefix asterisk.
+        </li>
+        <ul>
+          <li>
+            <b>*(_ - _) % _</b> matches <span class="hl_match1">(x * </span><span class="hl_match2">(1 - d)</span><span class="hl_match1">) % d</span>
+          </li>
+          <li>
+            &nbsp;<b>(_ - _) % _</b> does not match <b>(x * (1 - d)) % d</b>
+          </li>
+        </ul>
+        <li>
+          Some syntax in the pre-/postconditions is ignored during matching.
+        </li>
+        <ul>
+          <li>
+            <b>_ + _</b> matches <span class="hl_match1">(x + y)</span>
+          </li>
+          <li>
+            <b>3</b> matches <span class="hl_match1">3 as int</span>
+          </li>
+        </ul>
+        </li>
+        <li>
+          Certain functions are treated as matching corresponding operators.
+        </li>
+        <ul>
+          <li>
+            <b>_.index(_)</b> matches <span class="hl_match1">s[i]</span>
+          </li>
+          <li>
+            <b>_[_]</b> matches <span class="hl_match1">s.index(i)</span>
+          </li>
+          <li>
+            <b>_ == _</b> matches <span class="hl_match1">equal(3, 1 + 2)</span>
+          </li>
+        </ul>
+        <li>
+          Paths in the query must match a prefix.
+        </li>
+        <li>Generics are ignored</li>
+        <li>Arguments to function calls and method calls are matched according to the rules below.</li>
+      </ul>
+      <h4>Argument matching rules</h4>
+      <p>
+      The arguments to function and method calls are matched as follows. 
+      </p>
+      <ul>
+        <li>
+          A query with no arguments matches only a call with no arguments
+        </li>
+        <ul>
+          <li>
+            <b>foo()</b> matches <span class="hl_match1">foo()</span>
+          </li>
+          <li>
+            <b>foo()</b> does not match <b>foo(a)</b>
+          </li>
+        </ul>
+        <li>
+          Individual arguments match iff the expressions match.
+        </li>
+        <ul>
+          <li>
+            <b>foo(_ + _, 7)</b> matches <span class="hl_match1">foo(a + 1, 7)</span>
+          </li>
+          <li>
+            <b>foo(_ + _)</b> does not match <b>foo(7)</b>
+          </li>
+        </ul>
+        <li>
+          A wildcard <b>_</b> matches 0 or more arbitrary arguments.
+        </li>
+        <ul>
+          <li>
+            <b>foo(_)</b> matches <span class="hl_match1">foo(a + 1, 7)</span>
+          </li>
+          <li>
+            <b>foo(_)</b> matches <span class="hl_match1">foo()</span>
+          </li>
+          <li>
+            <b>foo(_, 7, _)</b> matches <span class="hl_match1">foo(a, 7, b)</span>
+          </li>
+          <li>
+            <b>foo(_, 7, 8, _)</b> does not match <b>foo(a, 7, b, 8, c)</b>
+          </li>
+        </ul>
+      </ul>
+      <h2>Searching by function signature</h2>
+      <p>
+      To search by function signature, type a valid Verus function signature.
+      </p>
+      <p>
+      For example, a search for <b>fn any(_: &amp;mut Vec&lt;_&gt;, _: _)</b> finds the following function:
+      </p>
+      <hr />
+      <div><div style="color:green; font-weight: bold;">vstd/pervasive.rs: (in `impl alloc::vec::Vec&lt;T&gt;`)</div><span class="">fn set(</span><span class="hl_match1">&amp;mut self</span><span class="">, i: usize, value: T)</span><br><span class="">        requires</span><br><span class="">            i &lt; old(self).len(),</span><br><span class="">        ensures</span><br><span class="">            self@ == old(self)@.update(i as int, value),</span></div>
+      <hr />
+      <h4>Signature matching rules</h4>
+      <ul>
+        <li>
+          Function names match if the query is a substring. The function name <b>any</b> is treated as a wildcard.
+        </li>
+        <ul>
+          <li>
+            <b>fn any()</b> matches <b>fn <span class="hl_match1">foo</span>()</b>
+          </li>
+          <li>
+            <b>fn foo()</b> matches <b>fn <span class="hl_match1">foobar</span>()</b>
+          </li>
+          <li>
+            <b>fn foo()</b> does not match <b>fn f()</b>
+          </li>
+        </ul>
+        <li>
+          Arguments are matched the same as arguments to function or method calls, as explained above. <b>_: _</b> is treated as a wildcard, while e.g. <b>_: u64</b> matches any u64 argument.
+        </li>
+        <ul>
+          <li>
+            <b>fn foo(_: Vec)</b> matches method <b>foo</b> in <b>impl Vec { fn foo(&self) }</b>
+          </li>
+        </ul>
+        <li>
+          The query doesn't support <b>self</b> arguments but the first argument is used to match against the <b>self</b> argument of searched methods.
+        </li>
+        <ul>
+          <li>
+            <b>fn foo(_: u64)</b> matches <b>spec fn foo()</b>
+          </li>
+        </ul>
+        <li>
+          If the query includes a mode, only signatures with that mode match.
+        </li>
+        <ul>
+          <li>
+            <b>spec fn foo()</b> matches <b>spec fn foo()</b>
+          </li>
+          <li>
+            <b>exec fn foo()</b> matches <b>fn foo()</b>
+          </li>
+          <li>
+            <b>spec fn foo()</b> does not match <b>proof fn foo()</b>
+          </li>
+        </ul>
+        <li>
+          If the query includes a return type, the signature's return type must match.
+        </li>
+        <ul>
+          <li>
+            <b>fn foo() -> u64</b> matches <b>fn foo() -> u64</b>
+          </li>
+          <li>
+            <b>fn foo() -> u64</b> does not match <b>fn foo()</b>
+          </li>
+        </ul>
+      </ul>
+      <h2>Can I search functions in my own project?</h2>
+      The web instance only searches in Verus' standard library vstd. The CLI version can also search your own project. Check out <a href="https://github.com/matthias-brun/verus-find">the Github repository</a> for instructions.
+  </body>
+</html>

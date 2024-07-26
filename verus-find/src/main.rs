@@ -1,7 +1,7 @@
 use clap::Parser;
 use syn_verus as syn;
 
-mod matching;
+pub mod matching;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -76,19 +76,22 @@ fn main() {
     });
     let query = matching::Query::new(reqens, req, ens, body, sig);
 
-    if let Some(file) = args.ag_file.file {
-        process_file(std::path::Path::new(&file), &query);
+    let count = if let Some(file) = args.ag_file.file {
+        process_file(std::path::Path::new(&file), &query)
     } else {
         let (root_path, files) =
             get_dependencies(std::path::Path::new(&args.ag_file.deps_file.unwrap()))
                 .expect("Failed to get dependencies from deps file");
-        files
-            .iter()
-            .for_each(|f| process_file(&root_path.join(f), &query));
-    }
+        let mut count = 0;
+        for file in files {
+            count += process_file(&root_path.join(file), &query);
+        }
+        count
+    };
+    println!("Found {} matches", count);
 }
 
-fn process_file(input_path: &std::path::Path, query: &matching::Query) {
+fn process_file(input_path: &std::path::Path, query: &matching::Query) -> usize {
     //println!("Processing {:?}", input_path);
     let file_content = std::fs::read_to_string(input_path)
         .map_err(|e| format!("cannot read {} ({})", input_path.display(), e))
@@ -99,9 +102,10 @@ fn process_file(input_path: &std::path::Path, query: &matching::Query) {
             format!("failed to parse file {}: {}", input_path.display(), e)
         })
         .unwrap();
-    matching::other::get_matches_items(file.items.iter(), query, input_path.to_str().unwrap())
-        .into_iter()
-        .for_each(|m| m.print());
+    let matches = matching::get_matches_file(&file, query, input_path.to_str().unwrap());
+    let count = matches.len();
+    matches.into_iter().for_each(|m| m.print());
+    count
 }
 
 // Copied from line_count tool
