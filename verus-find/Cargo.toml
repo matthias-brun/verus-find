@@ -2,6 +2,13 @@
 name = "verus-find"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "A tool to search for Verus functions and lemmas"
+homepage = "https://github.com/matthias-brun/verus-find"
+repository = "https://github.com/matthias-brun/verus-find"
+readme = "../README.md"
+keywords = ["verus"]
+categories = ["development-tools"]
 
 [lib]
 name = "verus_find_lib"
