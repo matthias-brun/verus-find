@@ -2,7 +2,7 @@ use leptos::*;
 //use leptos_dom::log;
 use syn::spanned::Spanned;
 use syn_verus as syn;
-use verus_find_lib::matching;
+use verus_find::matching;
 
 pub fn token_to_view(tok: matching::fmt::FmtToken) -> impl IntoView {
     match tok {

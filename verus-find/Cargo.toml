@@ -10,14 +10,6 @@ readme = "../README.md"
 keywords = ["verus"]
 categories = ["development-tools"]
 
-[lib]
-name = "verus_find_lib"
-path = "src/lib.rs"
-
-[[bin]]
-name = "verus-find"
-path = "src/main.rs"
-
 [dependencies]
 syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", features = ["full", "extra-traits"] }
 proc-macro2 = { version = "*", features = ["span-locations"] }
