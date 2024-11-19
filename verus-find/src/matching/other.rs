@@ -90,6 +90,7 @@ pub fn matches_signature(
         // exec?
         _ => None,
     };
+    let broadcast_matches = yes_if!(!(query.broadcast.is_some() && sig.broadcast.is_none()));
     let qname = query.ident.to_string();
     let sname = sig.ident.to_string();
     let name_matches = yes_if!((qname == *"any") || sname.contains(&qname));
@@ -137,7 +138,13 @@ pub fn matches_signature(
             (syn::ReturnType::Type(_, _, _, _), _) => None,
         }
     );
-    and!(name_matches, mode_matches, retv_matches, args_match)
+    and!(
+        name_matches,
+        mode_matches,
+        retv_matches,
+        args_match,
+        broadcast_matches
+    )
 }
 
 pub fn contains_match_stmts<'a, I>(stmts: I, query: &syn::Expr) -> Option<Highlights>
