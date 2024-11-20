@@ -107,6 +107,15 @@ fn add_highlights<S: Spanned>(item: S, highlights: &[(usize, usize)]) -> Vec<Fmt
     tokens
 }
 
+pub fn format_path(file: &str, item: &syn::Signature) -> String {
+    let parts: Vec<_> = file.split("/vstd/").collect();
+    assert!(parts.len() == 2);
+    let mod_path = parts[1].replace("/", "::");
+    // drop .rs prefix
+    let mod_path = &mod_path[..mod_path.len() - 3];
+    format!("vstd::{}::{}", mod_path, item.ident)
+}
+
 pub fn format_location_line(
     file: &str,
     item: &syn::Signature,

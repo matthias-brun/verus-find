@@ -27,6 +27,8 @@ struct ArgGroupQuery {
     ens: Option<String>,
     #[arg(short, long, value_name = "sig", help = "Find signature pattern")]
     sig: Option<String>,
+    #[arg(short, long)]
+    path: bool,
     //#[arg(short, long, value_name = "expr", help = "Expression to find in function body")]
     //body: Option<String>,
 }
@@ -76,22 +78,32 @@ fn main() {
     });
     let query = matching::Query::new(reqens, req, ens, body, sig);
 
-    let count = if let Some(file) = args.ag_file.file {
-        process_file(std::path::Path::new(&file), &query)
+    let (count, skipped) = if let Some(file) = args.ag_file.file {
+        process_file(std::path::Path::new(&file), &query, args.ag_query.path)
     } else {
         let (root_path, files) =
             get_dependencies(std::path::Path::new(&args.ag_file.deps_file.unwrap()))
                 .expect("Failed to get dependencies from deps file");
         let mut count = 0;
+        let mut skipped = 0;
         for file in files {
-            count += process_file(&root_path.join(file), &query);
+            let (c, s) = process_file(&root_path.join(file), &query, args.ag_query.path);
+            count += c;
+            skipped += s;
         }
-        count
+        (count, skipped)
     };
     println!("Found {} matches", count);
+    if skipped > 0 {
+        println!("Warning: Skipped {} matches", skipped);
+    }
 }
 
-fn process_file(input_path: &std::path::Path, query: &matching::Query) -> usize {
+fn process_file(
+    input_path: &std::path::Path,
+    query: &matching::Query,
+    print_path: bool,
+) -> (usize, usize) {
     //println!("Processing {:?}", input_path);
     let file_content = std::fs::read_to_string(input_path)
         .map_err(|e| format!("cannot read {} ({})", input_path.display(), e))
@@ -104,8 +116,19 @@ fn process_file(input_path: &std::path::Path, query: &matching::Query) -> usize 
         .unwrap();
     let matches = matching::get_matches_file(&file, query, input_path.to_str().unwrap());
     let count = matches.len();
-    matches.into_iter().for_each(|m| m.print());
-    count
+    let skipped = if print_path {
+        let count_printed = matches
+            .into_iter()
+            .map(|m| m.print_as_path())
+            .filter(|b| *b)
+            .collect::<Vec<_>>()
+            .len();
+        count - count_printed
+    } else {
+        matches.into_iter().for_each(|m| m.print());
+        0
+    };
+    (count, skipped)
 }
 
 // Copied from line_count tool
