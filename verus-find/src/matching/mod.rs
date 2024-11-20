@@ -197,6 +197,16 @@ impl Match {
         }
     }
 
+    pub fn print_as_path(&self) -> bool {
+        // Currently can't resolve path if there's an impl type
+        if self.impl_type().is_none() {
+            println!("{}", fmt::format_path(self.file(), self.sig()));
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn print(&self) {
         println!("{}", self.as_terminal_string());
     }
