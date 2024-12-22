@@ -37,7 +37,14 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         (syn::Expr::If(_), _) => panic!("Query does not support: syn::Expr::If"),
         (syn::Expr::Let(_), _) => panic!("Query does not support: syn::Expr::Let"),
         (syn::Expr::Loop(_), _) => panic!("Query does not support: syn::Expr::Loop"),
-        (syn::Expr::Macro(_), _) => panic!("Query does not support: syn::Expr::Macro"), // TODO:
+        (syn::Expr::Macro(m1), syn::Expr::Macro(m2)) => {
+            // TODO: Can't print this warning here, since it shows up once for every macro we
+            // encounter. Consider if it's worth it to add a check on the query at the beginning.
+            //println!("Warning: Macro arguments are ignored for matching. Use `--macros-exact` if you want macros to match only if they're exactly equal.");
+            //yes_if!(m2.mac.span().source_text() == m1.mac.span().source_text())
+            yes_if!(path_matches(&m2.mac.path, &m1.mac.path))
+        }
+        (syn::Expr::Macro(_), _) => None,
         (syn::Expr::Match(_), _) => panic!("Query does not support: syn::Expr::Match"),
         (syn::Expr::Range(_), _) => panic!("Query does not support: syn::Expr::Range"),
         (syn::Expr::Reference(_), _) => panic!("Query does not support: syn::Expr::Reference"),

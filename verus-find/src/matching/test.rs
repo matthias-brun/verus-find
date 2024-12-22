@@ -349,6 +349,25 @@ fn test_path() {
     check_expr_matches(query, expr, false);
 }
 
+#[test]
+fn test_macros_generic() {
+    let query = "abc![]";
+    let expr = "abc![]";
+    check_expr_matches(query, expr, true);
+
+    let query = "abc![]";
+    let expr = "xyz![]";
+    check_expr_matches(query, expr, false);
+
+    let query = "abc![x]";
+    let expr = "abc![x]";
+    check_expr_matches(query, expr, true);
+
+    let query = "abc![x]";
+    let expr = "abc![]";
+    check_expr_matches(query, expr, true);
+}
+
 #[ignore]
 #[test]
 fn test_macros_collections() {
