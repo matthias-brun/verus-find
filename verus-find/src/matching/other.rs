@@ -205,9 +205,22 @@ fn contains_match_impl_item(
     }
 }
 
+fn print_assert(a: Assert) {
+    println!("Matching assert on line {} in function {}:\nPath conditions:", a.stmt.span().start().line, a.fname);
+    for c in a.pc {
+        match c {
+            Cond::Pos(e) => println!("{}", e.span().source_text().unwrap()),
+            Cond::Neg(e) => println!("¬ {}", e.span().source_text().unwrap()),
+        }
+    }
+    println!("\n{}\n", a.stmt.span().source_text().unwrap());
+}
+
 pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
     match item {
         syn::Item::Fn(i) => {
+            let asserts = contains_matching_assert_stmts(&i.sig.ident.to_string(), i.block.stmts.iter(), query.reqens.as_ref().unwrap());
+            asserts.into_iter().for_each(|a| print_assert(a));
             contains_match_signature(&i.sig, query, None).map_or(vec![], |highlights| {
                 vec![Match::Item {
                     item: i.clone(),
@@ -250,6 +263,97 @@ pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Matc
         _ => vec![],
     }
 }
+
+#[derive(Clone, Debug)]
+struct Assert {
+    stmt: syn::Stmt,
+    file: String,
+    fname: String,
+    pc: Vec<Cond>,
+    //line: usize,
+}
+
+#[derive(Clone, Debug)]
+enum Cond {
+    Pos(syn::Expr),
+    Neg(syn::Expr),
+}
+
+/// Finds any matching assertions in this function.
+fn contains_matching_assert_stmt(fname: &str, stmt: &syn::Stmt, expr: &syn::Expr) -> Vec<Assert> {
+    // If the reqens argument is present, req and ens are both None
+    let e = match stmt {
+        syn::Stmt::Local(_l) => return vec![],
+        syn::Stmt::Item(_i) => return vec![],
+        syn::Stmt::Expr(e) => e,
+        syn::Stmt::Semi(e, _) => e,
+    };
+    match e {
+        syn::Expr::Assert(syn::Assert { expr: e, requires, .. }) => {
+            //println!("Target:\n{:?}", e);
+            //println!("\nQuery:\n{:?}\n", expr);
+            if requires.is_some() {
+                println!("Warning: Ignoring assertion requires clause");
+            }
+            if expr_matches(expr, e).is_some() {
+                vec![
+                    Assert {
+                        stmt: stmt.clone(),
+                        file: "TODO".to_string(),
+                        fname: fname.to_string(),
+                        pc: vec![],
+                    }]
+            } else {
+                vec![]
+            }
+            // TODO: currently not recursing into assertion bodies
+        },
+        syn::Expr::If(syn::ExprIf { cond, then_branch, else_branch, .. }) => {
+            let mut matches = vec![];
+            for a in contains_matching_assert_stmts(fname, then_branch.stmts.iter(), expr) {
+                let mut new_pc = a.pc.clone();
+                new_pc.insert(0, Cond::Pos(*cond.clone()));
+                matches.push(Assert {
+                    pc: new_pc,
+                    ..a
+                })
+            }
+            if let Some(else_branch) = else_branch {
+                let rec_matches = match *else_branch.1.clone() {
+                    syn::Expr::If(expr_if) => {
+                        contains_matching_assert_stmt(fname, &syn::Stmt::Expr(syn::Expr::If(expr_if)), expr)
+                    },
+                    syn::Expr::Block(expr_block) => {
+                        contains_matching_assert_stmts(fname, expr_block.block.stmts.iter(), expr)
+                    },
+                    _ => unreachable!(), // The else branch can only be an If or a Block
+                };
+                for a in rec_matches {
+                    let mut new_pc = a.pc.clone();
+                    new_pc.insert(0, Cond::Neg(*cond.clone()));
+                    matches.push(Assert {
+                        pc: new_pc,
+                        ..a
+                    })
+                }
+            }
+            matches
+            //let matches_if = contains_matching_assert_stmts(then_branch.stmts.iter(), expr);
+        },
+        _ => vec![],
+    }
+}
+
+fn contains_matching_assert_stmts<'a, I>(fname: &str, stmts: I, query: &syn::Expr) -> Vec<Assert>
+where
+    I: Iterator<Item = &'a syn::Stmt>,
+{
+    stmts
+        .map(|stmt| contains_matching_assert_stmt(fname, stmt, query))
+        .flatten()
+        .collect::<Vec<_>>()
+}
+
 
 fn contains_match_signature(
     sig: &syn::Signature,

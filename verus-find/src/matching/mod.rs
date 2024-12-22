@@ -241,6 +241,7 @@ impl<S: Spanned> SpanBounds for S {
     fn span_bounds(&self) -> (usize, usize) {
         let x = format!("{:?}", self.span());
         let x: Vec<_> = x.split(['(', '.', ')']).collect();
+        assert!(x.len() == 5);
         (x[1].parse().unwrap(), x[3].parse().unwrap())
     }
 }
