@@ -96,7 +96,16 @@
         <li>
           Paths in the query must match a prefix.
         </li>
-        <li>Generics are ignored</li>
+        <li>Generics are ignored.</li>
+        <li>Macro matching only considers the name.</li>
+        <ul>
+          <li>
+            <b>seq![1, 2, 3]</b> matches <span class="hl_match1">seq![]</span>
+          </li>
+          <li>
+            <b>seq![]</b> does not match <b>map![]</b>
+          </li>
+        </ul>
         <li>Arguments to function calls and method calls are matched according to the rules below.</li>
       </ul>
       <h4>Argument matching rules</h4>
@@ -157,7 +166,7 @@
       <h4>Signature matching rules</h4>
       <ul>
         <li>
-          Function names match if the query is a substring. The function name <b>any</b> is treated as a wildcard.
+          Function names match if the query is a substring. The string <b>any</b> is treated as a wildcard.
         </li>
         <ul>
           <li>
