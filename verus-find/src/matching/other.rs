@@ -93,7 +93,17 @@ pub fn matches_signature(
     let broadcast_matches = yes_if!(!(query.broadcast.is_some() && sig.broadcast.is_none()));
     let qname = query.ident.to_string();
     let sname = sig.ident.to_string();
-    let name_matches = yes_if!((qname == *"any") || sname.contains(&qname));
+    let name_matches = if qname == *"any" {
+        yes!()
+    } else {
+        match sname.match_indices(&qname).next() {
+            Some((i, s)) => {
+                let low = sig.ident.span_bounds().0 + i;
+                Some(vec![(low, low + s.len())])
+            }
+            None => no!(),
+        }
+    };
     let args_match = match_iter_with_holes(
         query.inputs.iter(),
         sig.inputs.iter(),

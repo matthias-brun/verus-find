@@ -173,7 +173,7 @@
             <b>fn any()</b> matches <b>fn <span class="hl_match1">foo</span>()</b>
           </li>
           <li>
-            <b>fn foo()</b> matches <b>fn <span class="hl_match1">foobar</span>()</b>
+            <b>fn foo()</b> matches <b>fn <span class="hl_match1">foo</span>bar()</b>
           </li>
           <li>
             <b>fn foo()</b> does not match <b>fn f()</b>
@@ -184,7 +184,7 @@
         </li>
         <ul>
           <li>
-            <b>fn foo(_: Vec)</b> matches method <b>foo</b> in <b>impl Vec { fn foo(&self) }</b>
+            <b>fn foo(_: u64)</b> matches <b>spec fn <span class="hl_match1">foo</span>(<span class="hl_match1">x: u64</span>)</b>
           </li>
         </ul>
         <li>
@@ -192,7 +192,7 @@
         </li>
         <ul>
           <li>
-            <b>fn foo(_: u64)</b> matches <b>spec fn foo()</b>
+            <b>fn foo(_: Vec)</b> matches method <b>foo</b> in <b>impl Vec { fn <span class="hl_match1">foo</span>(<span class="hl_match1">&self</span>) }</b>
           </li>
         </ul>
         <li>
