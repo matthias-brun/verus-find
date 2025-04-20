@@ -724,3 +724,54 @@ proof fn foo()
         m.as_fmt_tokens();
     }); // Shouldn't panic
 }
+
+/// Fully recurses in every requires and ensures clause in vstd. Mostly to make sure the pattern
+/// matches at least support everything we have in vstd.
+/// (Can't get static checks due to `non_exhaustive`.)
+/// Requires `VSTD_PATH=<.. path to vstd ..>`
+#[cfg(feature = "test_vstd")]
+#[test]
+fn test_vstd() {
+    use crate::matching;
+    use std::env;
+    use std::path::Path;
+    use walkdir::WalkDir;
+
+    fn matches_in_file(path: &std::path::Path, query: &matching::Query) {
+        let file_content = std::fs::read_to_string(path)
+            .map_err(|e| format!("cannot read {} ({})", path.display(), e))
+            .unwrap();
+        let file = syn_verus::parse_file(&file_content)
+            .map_err(|e| {
+                dbg!(&e.span().start(), &e.span().end());
+                format!("failed to parse file {}: {}", path.display(), e)
+            })
+            .unwrap();
+        let matches = matching::get_matches_file(&file, query, path.to_str().unwrap());
+        matches.into_iter().for_each(|m| m.print());
+    }
+
+    let vstd_path = env::var_os("VSTD_PATH").unwrap().into_string().unwrap();
+
+    // Very specific query that probably doesn't show up in vstd so we fully recurse into every
+    // expression.
+    let query_ast: syn::Expr = syn::parse_str("2102081722").unwrap();
+    let query = Query::new(Some(query_ast), None, None, None, None);
+
+    for entry in WalkDir::new(vstd_path) {
+        let entry = entry.unwrap();
+        if entry.file_type().is_file()
+            && entry
+                .path()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .ends_with("rs")
+        {
+            let file_path = Path::new(entry.path().to_str().unwrap());
+            println!("Matching in: {}", file_path.display());
+            matches_in_file(file_path, &query);
+        }
+    }
+}

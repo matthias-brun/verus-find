@@ -19,20 +19,17 @@ where
 /// attributes)
 pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
     //println!("expr_matches:\n{:?}\n{:?}\n", e1, e2);
-    // TODO: figure out how to get exhaustiveness checking for this match
     match (e1, e2) {
         // This lint would be great but is currently only on nightly.
         // #![cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
         (syn::Expr::Array(_), _) => panic!("Query does not support: syn::Expr::Array"),
         (syn::Expr::Assign(_), _) => panic!("Query does not support: syn::Expr::Assign"),
-        // (syn::Expr::AssignOp(_), _) => panic!("Query does not support: syn::Expr::AssignOp"),
         (syn::Expr::Async(_), _) => panic!("Query does not support: syn::Expr::Async"),
         (syn::Expr::Await(_), _) => panic!("Query does not support: syn::Expr::Await"),
         (syn::Expr::Block(_), _) => panic!("Query does not support: syn::Expr::Block"),
-        // (syn::Expr::Box(_), _) => panic!("Query does not support: syn::Expr::Box"), // TODO:?
         (syn::Expr::Break(_), _) => panic!("Query does not support: syn::Expr::Break"),
         (syn::Expr::Cast(_), _) => panic!("Query does not support: syn::Expr::Cast"),
-        (syn::Expr::Closure(_), _) => panic!("Query does not support: syn::Expr::Closure"), // TODO:
+        (syn::Expr::Closure(_), _) => panic!("Query does not support: syn::Expr::Closure"),
         (syn::Expr::Continue(_), _) => panic!("Query does not support: syn::Expr::Continue"),
         (syn::Expr::ForLoop(_), _) => panic!("Query does not support: syn::Expr::ForLoop"),
         (syn::Expr::Group(_), _) => panic!("Query does not support: syn::Expr::Group"),
@@ -56,7 +53,6 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         (syn::Expr::Try(_), _) => panic!("Query does not support: syn::Expr::Try"),
         (syn::Expr::TryBlock(_), _) => panic!("Query does not support: syn::Expr::TryBlock"),
         (syn::Expr::Tuple(_), _) => panic!("Query does not support: syn::Expr::Tuple"),
-        // (syn::Expr::Type(_), _) => panic!("Query does not support: syn::Expr::Type"),
         (syn::Expr::Unsafe(_), _) => panic!("Query does not support: syn::Expr::Unsafe"),
         (syn::Expr::While(_), _) => panic!("Query does not support: syn::Expr::While"),
         (syn::Expr::Yield(_), _) => panic!("Query does not support: syn::Expr::Yield"),
@@ -102,8 +98,7 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         (_, syn::Expr::Cast(eb2)) => expr_matches(e1, &eb2.expr),
         (syn::Expr::Paren(eb1), _) => expr_matches(&eb1.expr, e2),
         (_, syn::Expr::Paren(eb2)) => expr_matches(e1, &eb2.expr),
-        // (_, syn::Expr::Type(eb2)) => expr_matches(e1, &eb2.expr),
-        // Beginning of syntax that is ignored
+        // End of syntax that is ignored
         (_, syn::Expr::Block(_eb2)) => None,
         (syn::Expr::Index(eb1), syn::Expr::Index(eb2)) => {
             and!(
@@ -240,7 +235,6 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                 )
             }
             syn::Expr::Block(eb2) => contains_match_stmts(eb2.block.stmts.iter(), e1),
-            // syn::Expr::Box(eb2) => contains_match_expr(e1, &eb2.expr),
             syn::Expr::Break(_) => None,
             syn::Expr::Call(eb2) => {
                 or!(
@@ -325,7 +319,6 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                 .elems
                 .iter()
                 .find_map(|expr| contains_match_expr(e1, expr)),
-            // syn::Expr::Type(eb2) => expr_matches(e1, &eb2.expr),
             syn::Expr::Unary(eb2) => contains_match_expr(e1, &eb2.expr),
             syn::Expr::Unsafe(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Unsafe")
@@ -377,7 +370,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                 )
             }
             syn::Expr::GetField(eb2) => contains_match_expr(e1, &eb2.base),
-            _ => unimplemented!("unknown expression"),
+            other => unimplemented!("No match arm for: {:?}", other),
         }
     }
 }

@@ -10,6 +10,9 @@ readme = "../README.md"
 keywords = ["verus"]
 categories = ["development-tools"]
 
+[features]
+test_vstd = []
+
 [dependencies]
 proc-macro2 = { version = "*", features = ["span-locations"] }
 clap = { version = "*", features = [ "derive", "env" ] }
@@ -19,3 +22,6 @@ itertools = "*"
 git = "https://github.com/verus-lang/verus"
 rev = "1b16620e48b3ddd7655732fcd177e677088f6b2d"
 features = ["full", "extra-traits"]
+
+[dev-dependencies]
+walkdir = "2.5" # for test_vstd
