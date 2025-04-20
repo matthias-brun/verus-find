@@ -297,10 +297,6 @@ fn test_skipped_syntax() {
     let query = "foo(3)";
     let expr = "foo(3 as gobbledygook)";
     check_expr_matches(query, expr, true);
-
-    let query = "foo(3)";
-    let expr = "foo(3: bool)";
-    check_expr_matches(query, expr, true);
 }
 
 #[test]
@@ -544,10 +540,6 @@ fn test_recurse() {
 
     let query = "*1";
     let expr = "{ let x = 1; () }";
-    check_expr_matches(query, expr, true);
-
-    let query = "*1";
-    let expr = "box 1";
     check_expr_matches(query, expr, true);
 
     //let query = "*1";

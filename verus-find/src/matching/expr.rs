@@ -21,13 +21,15 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
     //println!("expr_matches:\n{:?}\n{:?}\n", e1, e2);
     // TODO: figure out how to get exhaustiveness checking for this match
     match (e1, e2) {
+        // This lint would be great but is currently only on nightly.
+        // #![cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
         (syn::Expr::Array(_), _) => panic!("Query does not support: syn::Expr::Array"),
         (syn::Expr::Assign(_), _) => panic!("Query does not support: syn::Expr::Assign"),
-        (syn::Expr::AssignOp(_), _) => panic!("Query does not support: syn::Expr::AssignOp"),
+        // (syn::Expr::AssignOp(_), _) => panic!("Query does not support: syn::Expr::AssignOp"),
         (syn::Expr::Async(_), _) => panic!("Query does not support: syn::Expr::Async"),
         (syn::Expr::Await(_), _) => panic!("Query does not support: syn::Expr::Await"),
         (syn::Expr::Block(_), _) => panic!("Query does not support: syn::Expr::Block"),
-        (syn::Expr::Box(_), _) => panic!("Query does not support: syn::Expr::Box"), // TODO:?
+        // (syn::Expr::Box(_), _) => panic!("Query does not support: syn::Expr::Box"), // TODO:?
         (syn::Expr::Break(_), _) => panic!("Query does not support: syn::Expr::Break"),
         (syn::Expr::Cast(_), _) => panic!("Query does not support: syn::Expr::Cast"),
         (syn::Expr::Closure(_), _) => panic!("Query does not support: syn::Expr::Closure"), // TODO:
@@ -54,7 +56,7 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         (syn::Expr::Try(_), _) => panic!("Query does not support: syn::Expr::Try"),
         (syn::Expr::TryBlock(_), _) => panic!("Query does not support: syn::Expr::TryBlock"),
         (syn::Expr::Tuple(_), _) => panic!("Query does not support: syn::Expr::Tuple"),
-        (syn::Expr::Type(_), _) => panic!("Query does not support: syn::Expr::Type"),
+        // (syn::Expr::Type(_), _) => panic!("Query does not support: syn::Expr::Type"),
         (syn::Expr::Unsafe(_), _) => panic!("Query does not support: syn::Expr::Unsafe"),
         (syn::Expr::While(_), _) => panic!("Query does not support: syn::Expr::While"),
         (syn::Expr::Yield(_), _) => panic!("Query does not support: syn::Expr::Yield"),
@@ -66,20 +68,17 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         (syn::Expr::RevealHide(_), _) => {
             panic!("Query does not support: syn::Expr::RevealHide")
         }
-        (syn::Expr::BigAnd(_), _) => panic!("Query does not support: syn::Expr::BigAnd"), // TODO:
-        (syn::Expr::BigOr(_), _) => panic!("Query does not support: syn::Expr::BigOr"),   // TODO:
-        (syn::Expr::Is(_), _) => panic!("Query does not support: syn::Expr::Is"),         // TODO:
-        (syn::Expr::Has(_), _) => panic!("Query does not support: syn::Expr::Has"),       // TODO:
+        (syn::Expr::BigAnd(_), _) => panic!("Query does not support: syn::Expr::BigAnd"),
+        (syn::Expr::BigOr(_), _) => panic!("Query does not support: syn::Expr::BigOr"),
+        (syn::Expr::Is(_), _) => panic!("Query does not support: syn::Expr::Is"), // TODO:
+        (syn::Expr::IsNot(_), _) => panic!("Query does not support: syn::Expr::IsNot"), // TODO:
+        (syn::Expr::Has(_), _) => panic!("Query does not support: syn::Expr::Has"), // TODO:
+        (syn::Expr::HasNot(_), _) => panic!("Query does not support: syn::Expr::HasNot"), // TODO:
         (syn::Expr::Matches(_), _) => panic!("Query does not support: syn::Expr::Matches"), // TODO:
         (syn::Expr::GetField(_), _) => panic!("Query does not support: syn::Expr::GetField"), // TODO:
-        (syn::Expr::Verbatim(ts), _) => {
-            // Always match if lhs is a wildcard (i.e. `_`)
-            if is_wildcard(ts) {
-                yes!()
-            } else {
-                panic!("Query contains unexpected syn::Expr::Verbatim")
-            }
-        }
+        // Wildcard
+        (syn::Expr::Infer(_), _) => yes!(),
+        (syn::Expr::Verbatim(_), _) => panic!("Query does not support: syn::Expr::Verbatim"),
         (syn::Expr::Unary(eb1), ref mut e2) => {
             // Does "unop1 _" match "unop2 _"?
             if let syn::UnOp::Deref(_) = eb1.op {
@@ -103,7 +102,7 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         (_, syn::Expr::Cast(eb2)) => expr_matches(e1, &eb2.expr),
         (syn::Expr::Paren(eb1), _) => expr_matches(&eb1.expr, e2),
         (_, syn::Expr::Paren(eb2)) => expr_matches(e1, &eb2.expr),
-        (_, syn::Expr::Type(eb2)) => expr_matches(e1, &eb2.expr),
+        // (_, syn::Expr::Type(eb2)) => expr_matches(e1, &eb2.expr),
         // Beginning of syntax that is ignored
         (_, syn::Expr::Block(_eb2)) => None,
         (syn::Expr::Index(eb1), syn::Expr::Index(eb2)) => {
@@ -210,7 +209,7 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
         //(syn::Expr::Tuple(_), _) => None,
         (syn::Expr::View(eb1), syn::Expr::View(eb2)) => expr_matches(&eb1.expr, &eb2.expr),
         (syn::Expr::View(_), _) => None,
-        _ => unimplemented!("unknown expression"),
+        other => unimplemented!("No match arm for: {:?}", other),
     }
 }
 
@@ -228,9 +227,6 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
             syn::Expr::Assign(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Assign")
             }
-            syn::Expr::AssignOp(_) => {
-                panic!("Recursion into this expr is not yet implemented: syn::Expr::AssignOp")
-            }
             syn::Expr::Async(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Async")
             }
@@ -244,7 +240,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                 )
             }
             syn::Expr::Block(eb2) => contains_match_stmts(eb2.block.stmts.iter(), e1),
-            syn::Expr::Box(eb2) => contains_match_expr(e1, &eb2.expr),
+            // syn::Expr::Box(eb2) => contains_match_expr(e1, &eb2.expr),
             syn::Expr::Break(_) => None,
             syn::Expr::Call(eb2) => {
                 or!(
@@ -329,8 +325,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                 .elems
                 .iter()
                 .find_map(|expr| contains_match_expr(e1, expr)),
-            syn::Expr::Type(eb2) => expr_matches(e1, &eb2.expr),
-
+            // syn::Expr::Type(eb2) => expr_matches(e1, &eb2.expr),
             syn::Expr::Unary(eb2) => contains_match_expr(e1, &eb2.expr),
             syn::Expr::Unsafe(_) => {
                 panic!("Recursion into this expr is not yet implemented: syn::Expr::Unsafe")
@@ -360,11 +355,11 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
             syn::Expr::BigAnd(eb2) => eb2
                 .exprs
                 .iter()
-                .find_map(|expr| contains_match_expr(e1, &expr.1)),
+                .find_map(|expr| contains_match_expr(e1, &expr.expr)),
             syn::Expr::BigOr(eb2) => eb2
                 .exprs
                 .iter()
-                .find_map(|expr| contains_match_expr(e1, &expr.1)),
+                .find_map(|expr| contains_match_expr(e1, &expr.expr)),
             syn::Expr::Is(eb2) => contains_match_expr(e1, &eb2.base),
             syn::Expr::Has(eb2) => {
                 and!(

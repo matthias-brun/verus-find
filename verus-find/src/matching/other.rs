@@ -174,13 +174,13 @@ where
 
 fn contains_match_stmt(stmt: &syn::Stmt, expr: &syn::Expr) -> Option<Highlights> {
     match stmt {
-        syn::Stmt::Local(l) => match l.init {
-            Some((_, ref e)) => contains_match_expr(expr, e),
+        syn::Stmt::Local(l) => match &l.init {
+            Some(syn::LocalInit { expr: e, .. }) => contains_match_expr(expr, &e),
             None => None,
         },
         syn::Stmt::Item(_i) => unimplemented!(),
-        syn::Stmt::Expr(e) => contains_match_expr(expr, e),
-        syn::Stmt::Semi(e, _) => contains_match_expr(expr, e),
+        syn::Stmt::Expr(e, _) => contains_match_expr(expr, e),
+        syn::Stmt::Macro(_) => no!(),
     }
 }
 
@@ -191,7 +191,7 @@ fn contains_match_impl_item(
     impl_type: &syn::Type,
 ) -> Option<Match> {
     match item {
-        syn::ImplItem::Method(m) => {
+        syn::ImplItem::Fn(m) => {
             contains_match_signature(&m.sig, query, Some(impl_type)).map(|highlights| {
                 Match::ImplItem {
                     item: m.clone(),
@@ -259,21 +259,21 @@ fn contains_match_signature(
     // If the reqens argument is present, req and ens are both None
     let reqens_matches = query.reqens().map_or(yes!(), |q| {
         or!(
-            sig.requires
+            sig.spec.requires
                 .as_ref()
                 .and_then(|req| contains_match_exprs(q, req.exprs.exprs.iter())),
-            sig.ensures
+            sig.spec.ensures
                 .as_ref()
                 .and_then(|ens| contains_match_exprs(q, ens.exprs.exprs.iter()))
         )
     });
     let req_matches = query.req().map_or(yes!(), |qreq| {
-        sig.requires
+        sig.spec.requires
             .as_ref()
             .and_then(|req| contains_match_exprs(qreq, req.exprs.exprs.iter()))
     });
     let ens_matches = query.ens().map_or(yes!(), |qens| {
-        sig.ensures
+        sig.spec.ensures
             .as_ref()
             .and_then(|ens| contains_match_exprs(qens, ens.exprs.exprs.iter()))
     });

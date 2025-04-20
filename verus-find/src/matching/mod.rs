@@ -156,7 +156,7 @@ impl Query {
 #[derive(Clone, Debug)]
 pub enum Match {
     ImplItem {
-        item: syn::ImplItemMethod,
+        item: syn::ImplItemFn,
         file: String,
         impl_type: syn::Type,
         highlights: Vec<(usize, usize)>,

@@ -11,7 +11,11 @@ keywords = ["verus"]
 categories = ["development-tools"]
 
 [dependencies]
-syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", features = ["full", "extra-traits"] }
 proc-macro2 = { version = "*", features = ["span-locations"] }
 clap = { version = "*", features = [ "derive", "env" ] }
 itertools = "*"
+
+[dependencies.syn_verus]
+git = "https://github.com/verus-lang/verus"
+rev = "1b16620e48b3ddd7655732fcd177e677088f6b2d"
+features = ["full", "extra-traits"]
