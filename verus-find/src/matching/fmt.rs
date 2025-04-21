@@ -21,7 +21,7 @@ impl HLToken {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub enum FmtToken {
     Newline,
     Text(String, HLToken),

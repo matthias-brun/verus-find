@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use syn_verus as syn;
 use verus_find_web::VerusFindComponent;
 

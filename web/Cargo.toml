@@ -13,7 +13,11 @@ console_log = "1"
 log = "0.4"
 console_error_panic_hook = "0.1.7"
 verus-find = { path = "../verus-find" }
-syn_verus = { git = "https://github.com/verus-lang/verus", version = "*", features = ["full", "extra-traits"] }
+
+[dependencies.syn_verus]
+git = "https://github.com/verus-lang/verus"
+rev = "1b16620e48b3ddd7655732fcd177e677088f6b2d"
+features = ["full", "extra-traits"]
 
 [dev-dependencies]
 wasm-bindgen = "0.2"

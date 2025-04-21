@@ -220,14 +220,13 @@ impl Match {
         fmt::format_location_line(self.file(), self.sig(), self.impl_type())
     }
 
-    pub fn hash(&self) -> u64 {
-        use std::hash::*;
-        let mut s = DefaultHasher::new();
-        self.file().hash(&mut s);
-        self.sig().hash(&mut s);
-        self.impl_type().hash(&mut s);
-        self.highlights().iter().collect::<Vec<_>>().hash(&mut s);
-        s.finish()
+    pub fn to_processed_match(&self) -> ProcessedMatch {
+        ProcessedMatch {
+            file: self.file().to_string(),
+            line: self.sig().span().start().line,
+            loc_line: self.format_location_line(),
+            source_fmt_tokens: self.as_fmt_tokens(),
+        }
     }
 }
 
@@ -251,4 +250,21 @@ pub fn get_matches_file(syn_file: &syn::File, query: &Query, file: &str) -> Vec<
         .iter()
         .flat_map(|item| other::get_matches_item(item, query, file))
         .collect()
+}
+
+#[derive(Clone, Hash)]
+pub struct ProcessedMatch {
+    pub file: String,
+    pub line: usize,
+    pub loc_line: String,
+    pub source_fmt_tokens: Vec<fmt::FmtToken>,
+}
+
+impl ProcessedMatch {
+    pub fn hash_with_default(&self) -> u64 {
+        use std::hash::*;
+        let mut s = DefaultHasher::new();
+        self.hash(&mut s);
+        s.finish()
+    }
 }
