@@ -2,8 +2,8 @@ use leptos::prelude::*;
 use syn_verus as syn;
 use verus_find_web::VerusFindComponent;
 
-mod vstd_files;
-use vstd_files::FILES;
+// This file is generated in build.rs and includes the full vstd files so we can search in them.
+include!(concat!(env!("OUT_DIR"), "/vstd_files.rs"));
 
 pub fn main() {
     _ = console_log::init_with_level(log::Level::Debug);

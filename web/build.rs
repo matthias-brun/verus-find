@@ -6,7 +6,7 @@ use walkdir::WalkDir;
 fn main() {
     let vstd_path = env::var_os("VSTD_PATH").unwrap().into_string().unwrap();
     let vstd_path_len = vstd_path.len();
-    let dest_path = Path::new("./src").join("vstd_files.rs");
+    let dest_path = Path::new(&env::var("OUT_DIR").unwrap()).join("vstd_files.rs");
     let mut out = "".to_string();
     let mut files = vec![];
 
@@ -25,5 +25,5 @@ fn main() {
     }
     out.push_str("];");
     fs::write(&dest_path, out).unwrap();
-    //println!("cargo::rerun-if-changed=build.rs");
+    // println!("cargo::rerun-if-changed=build.rs");
 }
