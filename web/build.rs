@@ -4,6 +4,8 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 fn main() {
+    built::write_built_file().expect("Failed to acquire build-time information");
+
     let vstd_path = env::var_os("VSTD_PATH").unwrap().into_string().unwrap();
     let vstd_path_len = vstd_path.len();
     let dest_path = Path::new(&env::var("OUT_DIR").unwrap()).join("vstd_files.rs");
