@@ -35,7 +35,7 @@ pub fn main() {
     mount_to_body(|| {
         view! {
             <h1>"Search in Verus' vstd"</h1>
-            <a href="howto.html">"How do I use this?"</a><br />
+            <a href="guide.html">"Guide"</a><br />
             <a href="https://github.com/matthias-brun/verus-find/issues">"Report an issue"</a><br /><br />
             <VerusFindComponent files=files />
             <hr />
