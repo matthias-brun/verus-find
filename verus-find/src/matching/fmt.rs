@@ -107,24 +107,20 @@ fn add_highlights<S: Spanned>(item: S, highlights: &[(usize, usize)]) -> Vec<Fmt
     tokens
 }
 
-pub fn format_location_line(
-    file: &str,
-    item: &syn::Signature,
-    impl_type: Option<&syn::Type>,
-) -> String {
+pub fn format_location_line(file: &str, span: &Span, impl_type: Option<&syn::Type>) -> String {
     let impl_msg = match impl_type {
         Some(ty) => format!(" (in `impl {}`)", ty.span().source_text().unwrap()),
         None => "".to_string(),
     };
 
-    format!("{}:{}:{}", file, item.span().start().line, impl_msg)
+    format!("{}:{}:{}", file, span.start().line, impl_msg)
 }
 
 /// This function highlights the source span of the given signature with the given highlights.
 /// The result is a vector of `FmtToken`s to separate the text from the highlighting. (Necessary to
 /// prevent injection when generating HTML output.)
-pub fn format_sig_with_highlights(
-    item: &syn::Signature,
+pub fn format_span_with_highlights<S: Spanned>(
+    item: S,
     highlights: &[(usize, usize)],
 ) -> Vec<FmtToken> {
     // TODO: probably want to unindent the result?

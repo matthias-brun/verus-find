@@ -75,7 +75,7 @@ pub fn binop_matches(bop1: &syn::BinOp, bop2: &syn::BinOp) -> bool {
 
 pub fn matches_signature(
     query: &syn::Signature,
-    sig: &syn::Signature,
+    sig: &Signature,
     impl_type: Option<&syn::Type>,
 ) -> Option<Highlights> {
     let mode_matches = match (&query.mode, &sig.mode) {
@@ -90,7 +90,7 @@ pub fn matches_signature(
         // exec?
         _ => None,
     };
-    let broadcast_matches = yes_if!(!(query.broadcast.is_some() && sig.broadcast.is_none()));
+    let broadcast_matches = yes_if!(query.broadcast.is_some() == sig.broadcast);
     let qname = query.ident.to_string();
     let sname = sig.ident.to_string();
     let name_matches = if qname == *"any" {
@@ -105,6 +105,7 @@ pub fn matches_signature(
         }
     };
     let args_match = match_iter_with_holes(
+        // query.inputs.clone().into_iter().collect::<Vec<syn::FnArg>>().iter(),
         query.inputs.iter(),
         sig.inputs.iter(),
         &|arg: &syn::FnArg| match arg.kind {
@@ -192,14 +193,14 @@ fn contains_match_impl_item(
 ) -> Option<Match> {
     match item {
         syn::ImplItem::Fn(m) => {
-            contains_match_signature(&m.sig, query, Some(impl_type)).map(|highlights| {
-                Match::ImplItem {
+            contains_match_signature(&Signature::from(&m.sig), query, Some(impl_type)).map(
+                |highlights| Match::ImplItem {
                     item: m.clone(),
                     file: file.to_string(),
                     impl_type: impl_type.clone(),
                     highlights,
-                }
-            })
+                },
+            )
         }
         _ => None,
     }
@@ -207,14 +208,27 @@ fn contains_match_impl_item(
 
 pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Match> {
     match item {
-        syn::Item::Fn(i) => {
-            contains_match_signature(&i.sig, query, None).map_or(vec![], |highlights| {
+        syn::Item::Fn(i) => contains_match_signature(&Signature::from(&i.sig), query, None).map_or(
+            vec![],
+            |highlights| {
                 vec![Match::Item {
                     item: i.clone(),
                     file: file.to_string(),
                     highlights,
                 }]
-            })
+            },
+        ),
+        syn::Item::AssumeSpecification(i) => {
+            contains_match_signature(&Signature::from(i), query, None).map_or(
+                vec![],
+                |highlights| {
+                    vec![Match::AssumeSpec {
+                        item: i.clone(),
+                        file: file.to_string(),
+                        highlights,
+                    }]
+                },
+            )
         }
         syn::Item::Impl(i) => i
             .items
@@ -251,33 +265,74 @@ pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Matc
     }
 }
 
+/// Functions and methods use `syn::Signature` but `AssumeSpecification` does not, hence we use our
+/// own type which keeps just the necessary fields for matching.
+pub struct Signature {
+    mode: syn::FnMode,
+    ident: syn::Ident,
+    inputs: syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
+    output: syn::ReturnType,
+    requires: Option<syn::Requires>,
+    ensures: Option<syn::Ensures>,
+    broadcast: bool,
+}
+
+impl From<&syn::Signature> for Signature {
+    fn from(sig: &syn::Signature) -> Signature {
+        Signature {
+            mode: sig.mode.clone(),
+            ident: sig.ident.clone(),
+            inputs: sig.inputs.clone(),
+            output: sig.output.clone(),
+            requires: sig.spec.requires.clone(),
+            ensures: sig.spec.ensures.clone(),
+            broadcast: sig.broadcast.is_some(),
+        }
+    }
+}
+
+impl From<&syn::AssumeSpecification> for Signature {
+    fn from(asm: &syn::AssumeSpecification) -> Signature {
+        let ident = asm.path.segments.last().unwrap().ident.clone();
+        Signature {
+            mode: syn::FnMode::Exec(syn::ModeExec {
+                exec_token: syn::token::Exec {
+                    span: Span::call_site(),
+                },
+            }),
+            ident,
+            inputs: asm.inputs.clone(),
+            output: asm.output.clone(),
+            requires: asm.requires.clone(),
+            ensures: asm.ensures.clone(),
+            broadcast: false,
+        }
+    }
+}
+
 fn contains_match_signature(
-    sig: &syn::Signature,
+    sig: &Signature,
     query: &Query,
     impl_type: Option<&syn::Type>,
 ) -> Option<Highlights> {
     // If the reqens argument is present, req and ens are both None
     let reqens_matches = query.reqens().map_or(yes!(), |q| {
         or!(
-            sig.spec
-                .requires
+            sig.requires
                 .as_ref()
                 .and_then(|req| contains_match_exprs(q, req.exprs.exprs.iter())),
-            sig.spec
-                .ensures
+            sig.ensures
                 .as_ref()
                 .and_then(|ens| contains_match_exprs(q, ens.exprs.exprs.iter()))
         )
     });
     let req_matches = query.req().map_or(yes!(), |qreq| {
-        sig.spec
-            .requires
+        sig.requires
             .as_ref()
             .and_then(|req| contains_match_exprs(qreq, req.exprs.exprs.iter()))
     });
     let ens_matches = query.ens().map_or(yes!(), |qens| {
-        sig.spec
-            .ensures
+        sig.ensures
             .as_ref()
             .and_then(|ens| contains_match_exprs(qens, ens.exprs.exprs.iter()))
     });

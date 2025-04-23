@@ -1,6 +1,51 @@
 use super::*;
 
-#[allow(dead_code)]
+#[cfg(test)]
+fn query_with_reqens(reqens: &str) -> Query {
+    let reqens_ast: syn::Expr = syn::parse_str(reqens)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", reqens));
+    let mut q = Query::empty();
+    q.set_reqens(Some(reqens_ast));
+    q
+}
+
+#[cfg(test)]
+fn check_fun_contains_match(query: Query, fun: &str, expect: bool) {
+    let fun_ast: syn::Item =
+        syn::parse_str(fun).unwrap_or_else(|_| panic!("Failed to parse \"{}\" into Item", fun));
+    let res = get_matches_item(&fun_ast, &query, "Foo");
+    if (res.len() > 0) != expect {
+        if expect {
+            println!("Query:\n{:?} should match {:?}\n", query, fun);
+        } else {
+            println!("Query:\n{:?} shouldn't match {:?}\n", query, fun);
+        }
+        println!("Query:\n{:?}\n", query);
+        println!("Item AST:\n{:?}\n", fun_ast);
+    }
+    assert!((res.len() > 0) == expect);
+}
+
+#[cfg(test)]
+fn check_assume_specification_matches(query: &str, asm: &str, expect: bool) {
+    let query_ast: syn::Signature = syn::parse_str(query)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into signature", query));
+    let sig_ast: syn::AssumeSpecification = syn::parse_str(asm)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into AssumeSpecification", asm));
+    let res = matches_signature(&query_ast, &Signature::from(&sig_ast), None);
+    if res.is_some() != expect {
+        if expect {
+            println!("Query:\n{:?} should match {:?}\n", query, asm);
+        } else {
+            println!("Query:\n{:?} shouldn't match {:?}\n", query, asm);
+        }
+        println!("Query AST:\n{:?}\n", query_ast);
+        println!("AssumeSpecification AST:\n{:?}\n", sig_ast);
+    }
+    assert!(res.is_some() == expect);
+}
+
+#[cfg(test)]
 fn check_sig_matches(query: &str, sig: &str, impl_type: Option<&str>, expect: bool) {
     let query_ast: syn::Signature = syn::parse_str(query)
         .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into signature", query));
@@ -9,7 +54,11 @@ fn check_sig_matches(query: &str, sig: &str, impl_type: Option<&str>, expect: bo
     let impl_type_ast: Option<syn::Type> = impl_type.map(|ty| {
         syn::parse_str(ty).unwrap_or_else(|_| panic!("Failed to parse \"{}\" into type", ty))
     });
-    let res = matches_signature(&query_ast, &sig_ast, impl_type_ast.as_ref());
+    let res = matches_signature(
+        &query_ast,
+        &Signature::from(&sig_ast),
+        impl_type_ast.as_ref(),
+    );
     if res.is_some() != expect {
         if expect {
             println!(
@@ -28,7 +77,7 @@ fn check_sig_matches(query: &str, sig: &str, impl_type: Option<&str>, expect: bo
     assert!(res.is_some() == expect);
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 fn check_expr_matches(query: &str, expr: &str, expect: bool) {
     let query_ast: syn::Expr = syn::parse_str(query)
         .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", query));
@@ -678,6 +727,67 @@ fn test_sig() {
     //let sig = "fn foo(x: &int)";
     //let impl_type = None;
     //check_sig_matches(query, sig, impl_type, true);
+}
+
+const TEST_CONST_ASSUME_SPEC: &str = "
+pub assume_specification[ Foo::foo ](f: &mut Foo, value: u64)
+    requires
+        value % 2 == 0
+    ensures
+        f@ == old(f)@.foo(value),
+;
+";
+
+#[test]
+fn test_assume_specification_sig() {
+    let asm = TEST_CONST_ASSUME_SPEC;
+
+    let query = "spec fn any(_:_)";
+    check_assume_specification_matches(query, asm, false);
+
+    let query = "exec fn any(_:_)";
+    check_assume_specification_matches(query, asm, true);
+
+    let query = "fn any(_: &mut Foo, _: u64)";
+    check_assume_specification_matches(query, asm, true);
+
+    let query = "fn foo(_:_)";
+    check_assume_specification_matches(query, asm, true);
+
+    let query = "fn any(_: &mut Bar, _: u64)";
+    check_assume_specification_matches(query, asm, false);
+
+    let query = "fn foo(_:_)";
+    check_assume_specification_matches(query, asm, true);
+
+    let query = "fn far(_:_)";
+    check_assume_specification_matches(query, asm, false);
+}
+
+#[test]
+fn test_assume_specification_item() {
+    let asm = TEST_CONST_ASSUME_SPEC;
+
+    let query = query_with_reqens("_");
+    check_fun_contains_match(query, asm, true);
+
+    let query = query_with_reqens("_ % 2 == _");
+    check_fun_contains_match(query, asm, true);
+
+    let query = query_with_reqens("_ % 2");
+    check_fun_contains_match(query, asm, true);
+
+    let query = query_with_reqens("_ + 2");
+    check_fun_contains_match(query, asm, false);
+
+    let query = query_with_reqens("_@");
+    check_fun_contains_match(query, asm, true);
+
+    let query = query_with_reqens("_.foo(_)");
+    check_fun_contains_match(query, asm, true);
+
+    let query = query_with_reqens("_ > _");
+    check_fun_contains_match(query, asm, false);
 }
 
 #[test]

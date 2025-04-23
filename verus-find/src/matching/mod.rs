@@ -7,6 +7,7 @@ mod test;
 use expr::*;
 use other::*;
 
+use proc_macro2::Span;
 use syn::spanned::Spanned;
 use syn_verus as syn;
 
@@ -107,12 +108,12 @@ impl Query {
         Query::new(None, None, None, None, None)
     }
 
-    pub fn set_reqens(self, reqens: Option<syn::Expr>) -> Query {
-        Query { reqens, ..self }
+    pub fn set_reqens(&mut self, reqens: Option<syn::Expr>) {
+        self.reqens = reqens;
     }
 
-    pub fn set_sig(self, sig: Option<syn::Signature>) -> Query {
-        Query { sig, ..self }
+    pub fn set_sig(&mut self, sig: Option<syn::Signature>) {
+        self.sig = sig;
     }
 
     pub fn new(
@@ -166,6 +167,11 @@ pub enum Match {
         file: String,
         highlights: Vec<(usize, usize)>,
     },
+    AssumeSpec {
+        item: syn::AssumeSpecification,
+        file: String,
+        highlights: Vec<(usize, usize)>,
+    },
 }
 
 impl Match {
@@ -173,13 +179,15 @@ impl Match {
         match self {
             Match::ImplItem { file, .. } => file,
             Match::Item { file, .. } => file,
+            Match::AssumeSpec { file, .. } => file,
         }
     }
 
-    pub fn sig(&self) -> &syn::Signature {
+    pub fn span(&self) -> Span {
         match self {
-            Match::ImplItem { item, .. } => &item.sig,
-            Match::Item { item, .. } => &item.sig,
+            Match::ImplItem { item, .. } => item.sig.span(),
+            Match::Item { item, .. } => item.sig.span(),
+            Match::AssumeSpec { item, .. } => item.span(),
         }
     }
 
@@ -187,6 +195,7 @@ impl Match {
         match self {
             Match::ImplItem { impl_type, .. } => Some(impl_type),
             Match::Item { .. } => None,
+            Match::AssumeSpec { .. } => None,
         }
     }
 
@@ -194,6 +203,7 @@ impl Match {
         match self {
             Match::ImplItem { highlights, .. } => highlights,
             Match::Item { highlights, .. } => highlights,
+            Match::AssumeSpec { highlights, .. } => highlights,
         }
     }
 
@@ -202,28 +212,28 @@ impl Match {
     }
 
     pub fn as_fmt_tokens(&self) -> Vec<fmt::FmtToken> {
-        fmt::format_sig_with_highlights(self.sig(), self.highlights())
+        fmt::format_span_with_highlights(self.span(), self.highlights())
     }
 
     pub fn as_terminal_string(&self) -> String {
         format!(
             "\x1b[32m\x1b[1m{}\x1b[0m\n{}",
-            fmt::format_location_line(self.file(), self.sig(), self.impl_type()),
-            fmt::fmt_tokens_to_terminal_string(fmt::format_sig_with_highlights(
-                self.sig(),
+            fmt::format_location_line(self.file(), &self.span(), self.impl_type()),
+            fmt::fmt_tokens_to_terminal_string(fmt::format_span_with_highlights(
+                self.span(),
                 self.highlights()
             ))
         )
     }
 
     pub fn format_location_line(&self) -> String {
-        fmt::format_location_line(self.file(), self.sig(), self.impl_type())
+        fmt::format_location_line(self.file(), &self.span(), self.impl_type())
     }
 
     pub fn to_processed_match(&self) -> ProcessedMatch {
         ProcessedMatch {
             file: self.file().to_string(),
-            line: self.sig().span().start().line,
+            line: self.span().start().line,
             loc_line: self.format_location_line(),
             source_fmt_tokens: self.as_fmt_tokens(),
         }
