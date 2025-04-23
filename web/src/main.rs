@@ -37,7 +37,9 @@ pub fn main() {
             <h1>"Search in Verus' vstd"</h1>
             <a href="guide.html">"Guide"</a><br />
             <a href="https://github.com/matthias-brun/verus-find/issues">"Report an issue"</a><br /><br />
+            <div class="code">
             <VerusFindComponent files=files />
+            </div>
             <hr />
             <a href="https://github.com/matthias-brun/verus-find">"verus-find"</a>
             " built on "{build_date}

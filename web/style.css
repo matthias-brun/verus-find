@@ -1,31 +1,53 @@
+@font-face {
+  /* Inter font license:
+   * (available at https://openfontlicense.org)
+   *
+   *
+   * Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
+   * 
+   * This Font Software is licensed under the SIL Open Font License, Version 1.1.
+   */
+  font-family: "Inter";
+  src: url("Inter.ttf");
+}
+
 body {
-  font-family: monospace;
+  font-family: Inter;
   font-size: 12pt;
+  .code {
+    font-family: monospace;
+  }
   span {
     white-space: pre;
   }
   span.hl_match1 {
+    font-family: monospace;
     color: orange;
     font-weight: bold;
   }
   span.hl_match2 {
+    font-family: monospace;
     color: red;
     font-weight: bold;
   }
   span.hl_match0 {
+    font-family: monospace;
     color: blue;
     font-weight: bold;
   }
   span.err_msg {
+    font-family: monospace;
     color: red;
     font-weight: bold;
   }
   input[type="text"] {
+    font-family: monospace;
     border: none;
     outline: none;
     border-bottom: 1px solid #ccc;
   }
   input[type="text"].err {
+    font-family: monospace;
     border-bottom: 1px solid red;
   }
 }
