@@ -365,7 +365,7 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                     contains_match_expr(e1, &eb2.lhs),
                     match &eb2.op_expr {
                         Some(op_expr) => contains_match_expr(e1, &op_expr.rhs),
-                        None => yes!(),
+                        None => no!(),
                     }
                 )
             }

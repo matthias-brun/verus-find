@@ -591,6 +591,14 @@ fn test_recurse() {
     let expr = "{ let x = 1; () }";
     check_expr_matches(query, expr, true);
 
+    let query = "*1";
+    let expr = "foo(1) is A";
+    check_expr_matches(query, expr, true);
+
+    let query = "*1";
+    let expr = "foo(1) matches A";
+    check_expr_matches(query, expr, true);
+
     //let query = "*1";
     //let expr = "{ if 1 then { } else { } }";
     //check_expr_matches(query, expr, true);
@@ -814,6 +822,25 @@ fn test_bug_repros() {
     let query = "*(_.finite())";
     let expr = "bar(seq![x].add(s))";
     check_expr_matches(query, expr, false);
+}
+
+#[test]
+fn test_bug_repro_wildcard() {
+    let item_source = "
+proof fn split_helper(r: Foo)
+    requires
+        r matches A::B(x)
+{}
+    ";
+    let query_source = "_ / _";
+    let query_ast: syn::Expr = syn::parse_str(query_source)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", query_source));
+    let item_ast: syn::Item = syn::parse_str(item_source)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", item_source));
+    let query = Query::new(Some(query_ast), None, None, None, None);
+    let matches = get_matches_item(&item_ast, &query, "file");
+    println!("{:#?}", matches);
+    assert!(matches.is_empty());
 }
 
 #[test]
