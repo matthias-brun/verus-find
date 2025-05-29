@@ -32,10 +32,10 @@ expressions. The `--sig` argument takes a function signature to search for.
 
 Refer to the [web version's guide](https://matthias-brun.ch/verus-find/guide.html) for information on supported patterns and signatures.
 
-## (Current) Limitations
+## (Some of the) Limitations
 
 - Can't have macros in the query (e.g. `seq![x,y]`)
-- No unification (e.g. `x + x` matches `a + a` but not `a + b`
-- Can't search for expressions with specific type (e.g. in ensures clauses, search for `x.len()`
+- No unification (e.g. such that `x + x` would match `a + a` but not `a + b`)
+- Can't search for expressions by type (e.g. in ensures clauses, search for `x.len()`
   where `x` is a `Set`)
 - Generics are ignored
