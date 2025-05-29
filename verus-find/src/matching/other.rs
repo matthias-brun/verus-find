@@ -55,7 +55,7 @@ where
 
 /// Any spanned thing is a wildcard iff its corresponding source is `_`.
 pub fn is_wildcard<S: Spanned>(item: S) -> bool {
-    item.span().source_text().map_or(false, |s| s == "_")
+    item.span().source_text().is_some_and(|s| s == "_")
 }
 
 pub fn binop_matches(bop1: &syn::BinOp, bop2: &syn::BinOp) -> bool {
@@ -195,9 +195,9 @@ fn contains_match_impl_item(
         syn::ImplItem::Fn(m) => {
             contains_match_signature(&Signature::from(&m.sig), query, Some(impl_type)).map(
                 |highlights| Match::ImplItem {
-                    item: m.clone(),
+                    item: Box::new(m.clone()),
                     file: file.to_string(),
-                    impl_type: impl_type.clone(),
+                    impl_type: Box::new(impl_type.clone()),
                     highlights,
                 },
             )
@@ -212,7 +212,7 @@ pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Matc
             vec![],
             |highlights| {
                 vec![Match::Item {
-                    item: i.clone(),
+                    item: Box::new(i.clone()),
                     file: file.to_string(),
                     highlights,
                 }]
@@ -223,7 +223,7 @@ pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Matc
                 vec![],
                 |highlights| {
                     vec![Match::AssumeSpec {
-                        item: i.clone(),
+                        item: Box::new(i.clone()),
                         file: file.to_string(),
                         highlights,
                     }]

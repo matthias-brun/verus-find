@@ -157,18 +157,18 @@ impl Query {
 #[derive(Clone, Debug)]
 pub enum Match {
     ImplItem {
-        item: syn::ImplItemFn,
+        item: Box<syn::ImplItemFn>,
         file: String,
-        impl_type: syn::Type,
+        impl_type: Box<syn::Type>,
         highlights: Vec<(usize, usize)>,
     },
     Item {
-        item: syn::ItemFn,
+        item: Box<syn::ItemFn>,
         file: String,
         highlights: Vec<(usize, usize)>,
     },
     AssumeSpec {
-        item: syn::AssumeSpecification,
+        item: Box<syn::AssumeSpecification>,
         file: String,
         highlights: Vec<(usize, usize)>,
     },
