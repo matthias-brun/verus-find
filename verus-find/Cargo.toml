@@ -20,7 +20,7 @@ itertools = "*"
 
 [dependencies.syn_verus]
 git = "https://github.com/verus-lang/verus"
-rev = "1b16620e48b3ddd7655732fcd177e677088f6b2d"
+rev = "ea94bc0d4bd8ed418917719ffe40db9803c79558"
 features = ["full", "extra-traits"]
 
 [dev-dependencies]
