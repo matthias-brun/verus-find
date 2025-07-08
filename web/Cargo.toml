@@ -17,7 +17,7 @@ chrono = "*"
 
 [dependencies.syn_verus]
 git = "https://github.com/verus-lang/verus"
-rev = "ea94bc0d4bd8ed418917719ffe40db9803c79558"
+rev = "98768b15c176566a5d8b35cbfe6c8d7bc1f0073c"
 features = ["full", "extra-traits"]
 
 [dev-dependencies]
