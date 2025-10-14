@@ -410,7 +410,7 @@ fn test_macros_generic() {
 
     let query = "abc![x]";
     let expr = "abc![]";
-    check_expr_matches(query, expr, true);
+    check_expr_matches(query, expr, false);
 }
 
 #[ignore]
@@ -818,6 +818,30 @@ fn test_field() {
 }
 
 #[test]
+fn test_is_isnot() {
+    // Verus macro needed to parse !is/!has
+    let fun1 = "verus!{
+        proof fn foo()
+            requires x is A
+        {}
+    }";
+    let fun2 = "verus!{
+        proof fn foo()
+            ensures x !has A
+        {}
+    }";
+
+    let query = query_with_reqens("x");
+    check_fun_contains_match(query, fun1, true);
+
+    let query = query_with_reqens("x");
+    check_fun_contains_match(query, fun2, true);
+
+    let query = query_with_reqens("y");
+    check_fun_contains_match(query, fun2, false);
+}
+
+#[test]
 fn test_bug_repros() {
     let query = "*(_.finite())";
     let expr = "bar(seq![x].add(s))";
@@ -860,6 +884,24 @@ proof fn foo()
     matches.iter().for_each(|m| {
         m.as_fmt_tokens();
     }); // Shouldn't panic
+}
+
+#[test]
+fn test_bug_repro_isnot_fails_to_parse() {
+    let item_source = "
+verus!{
+proof fn foo()
+    ensures x !is A
+{}
+}
+    ";
+    let query_source = "x";
+    let query_ast: syn::Expr = syn::parse_str(query_source)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", query_source));
+    let item_ast: syn::Item = syn::parse_str(item_source)
+        .unwrap_or_else(|_| panic!("Failed to parse \"{}\" into expression", item_source));
+    let query = Query::new(Some(query_ast), None, None, None, None);
+    check_fun_contains_match(query, item_source, true);
 }
 
 /// Fully recurses in every requires and ensures clause in vstd. Mostly to make sure the pattern

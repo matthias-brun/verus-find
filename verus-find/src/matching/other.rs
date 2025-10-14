@@ -238,7 +238,9 @@ pub fn get_matches_item(item: &syn::Item, query: &Query, file: &str) -> Vec<Matc
         syn::Item::Macro(m) => {
             let outer_last_segment = m.mac.path.segments.last().map(|s| s.ident.to_string());
             if outer_last_segment == Some(String::from("verus")) {
-                let macro_content: syn::File = verus_syn::parse2(m.mac.tokens.clone())
+                // Rejoin tokens like !is, etc.
+                let tokens = syn::rejoin_tokens(m.mac.tokens.clone());
+                let macro_content: syn::File = verus_syn::parse2(tokens)
                     .map_err(|e| {
                         dbg!(&e.span().start(), &e.span().end());
                         format!("failed to parse file macro contents: {} {:?}", e, e.span())

@@ -40,8 +40,8 @@ pub fn expr_matches(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights> {
             // TODO: Can't print this warning here, since it shows up once for every macro we
             // encounter. Consider if it's worth it to add a check on the query at the beginning.
             //println!("Warning: Macro arguments are ignored for matching. Use `--macros-exact` if you want macros to match only if they're exactly equal.");
-            //yes_if!(m2.mac.span().source_text() == m1.mac.span().source_text())
-            yes_if!(path_matches(&m2.mac.path, &m1.mac.path))
+            yes_if!(m2.mac.span().source_text() == m1.mac.span().source_text())
+            // yes_if!(path_matches(&m2.mac.path, &m1.mac.path))
         }
         (syn::Expr::Macro(_), _) => None,
         (syn::Expr::Match(_), _) => panic!("Query does not support: syn::Expr::Match"),
@@ -355,7 +355,14 @@ pub fn contains_match_expr(e1: &syn::Expr, e2: &syn::Expr) -> Option<Highlights>
                 .find_map(|expr| contains_match_expr(e1, &expr.expr)),
             syn::Expr::Is(eb2) => contains_match_expr(e1, &eb2.base),
             syn::Expr::Has(eb2) => {
-                and!(
+                or!(
+                    contains_match_expr(e1, &eb2.lhs),
+                    contains_match_expr(e1, &eb2.rhs)
+                )
+            }
+            syn::Expr::IsNot(eb2) => contains_match_expr(e1, &eb2.base),
+            syn::Expr::HasNot(eb2) => {
+                or!(
                     contains_match_expr(e1, &eb2.lhs),
                     contains_match_expr(e1, &eb2.rhs)
                 )
