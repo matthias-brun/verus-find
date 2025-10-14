@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use syn_verus as syn;
+use verus_syn as syn;
 use verus_find::matching;
 
 pub fn token_to_view(tok: matching::fmt::FmtToken) -> AnyView {

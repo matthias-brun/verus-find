@@ -9,7 +9,7 @@ use other::*;
 
 use proc_macro2::Span;
 use syn::spanned::Spanned;
-use syn_verus as syn;
+use verus_syn as syn;
 
 macro_rules! yes {
     () => {

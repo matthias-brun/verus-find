@@ -15,9 +15,9 @@ console_error_panic_hook = "0.1.7"
 verus-find = { path = "../verus-find" }
 chrono = "*"
 
-[dependencies.syn_verus]
+[dependencies.verus_syn]
 git = "https://github.com/verus-lang/verus"
-rev = "98768b15c176566a5d8b35cbfe6c8d7bc1f0073c"
+rev = "bf8e97e852e95f277333ecd7c6515d5c1adfbf0c"
 features = ["full", "extra-traits"]
 
 [dev-dependencies]

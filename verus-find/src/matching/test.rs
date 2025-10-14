@@ -878,7 +878,7 @@ fn test_vstd() {
         let file_content = std::fs::read_to_string(path)
             .map_err(|e| format!("cannot read {} ({})", path.display(), e))
             .unwrap();
-        let file = syn_verus::parse_file(&file_content)
+        let file = syn::parse_file(&file_content)
             .map_err(|e| {
                 dbg!(&e.span().start(), &e.span().end());
                 format!("failed to parse file {}: {}", path.display(), e)

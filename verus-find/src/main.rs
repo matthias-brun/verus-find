@@ -1,5 +1,5 @@
 use clap::Parser;
-use syn_verus as syn;
+use verus_syn as syn;
 
 pub mod matching;
 
@@ -96,7 +96,7 @@ fn process_file(input_path: &std::path::Path, query: &matching::Query) -> usize 
     let file_content = std::fs::read_to_string(input_path)
         .map_err(|e| format!("cannot read {} ({})", input_path.display(), e))
         .unwrap();
-    let file = syn_verus::parse_file(&file_content)
+    let file = syn::parse_file(&file_content)
         .map_err(|e| {
             dbg!(&e.span().start(), &e.span().end());
             format!("failed to parse file {}: {}", input_path.display(), e)
