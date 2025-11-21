@@ -303,7 +303,12 @@ impl From<&syn::AssumeSpecification> for Signature {
                 },
             }),
             ident,
-            inputs: asm.inputs.clone(),
+            // If inputs is None, this is an assumed specification for a constant
+            // https://github.com/verus-lang/verus/pull/1825
+            inputs: match asm.inputs.clone() {
+                Some((_, p)) => p,
+                None => syn::punctuated::Punctuated::new(),
+            },
             output: asm.output.clone(),
             requires: asm.requires.clone(),
             ensures: asm.ensures.clone(),
